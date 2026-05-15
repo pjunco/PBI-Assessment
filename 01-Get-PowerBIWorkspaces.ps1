@@ -79,9 +79,9 @@ try {
     # Get-PowerBIWorkspace -Scope Organization requires Power BI Admin role
     $allWorkspaces = Get-PowerBIWorkspace -Scope Organization -All -Include All
 
-    # Filter to dedicated-capacity workspaces only
-    $workspaces = $allWorkspaces | Where-Object { $_.IsOnDedicatedCapacity -eq $true }
-    Write-Host "Found $($workspaces.Count) dedicated-capacity workspace(s) (out of $($allWorkspaces.Count) total)." -ForegroundColor Green
+    # Filter to dedicated-capacity workspaces only (exclude personal workspaces)
+    $workspaces = $allWorkspaces | Where-Object { $_.IsOnDedicatedCapacity -eq $true -and $_.Type -ne 'PersonalGroup' }
+    Write-Host "Found $($workspaces.Count) dedicated-capacity workspace(s) (out of $($allWorkspaces.Count) total, personal workspaces excluded)." -ForegroundColor Green
 
     # ── 4. Fetch capacities to determine SKU type ───────────────────────────────
     Write-Host "Fetching capacity SKUs..." -ForegroundColor Cyan
@@ -109,7 +109,26 @@ try {
         $capType = if ($capacityTypeMap.ContainsKey($capKey)) { $capacityTypeMap[$capKey] } else { 'PBI Premium Capacity' }
         $capName = if ($capacityNameMap.ContainsKey($capKey)) { $capacityNameMap[$capKey] } else { 'Unknown' }
         $capSku  = if ($capacitySkuMap.ContainsKey($capKey))  { $capacitySkuMap[$capKey]  } else { 'Unknown' }
-        $reportCount = (Get-PowerBIReport -WorkspaceId $ws.Id -Scope Organization).Count
+
+        # Retry Get-PowerBIReport on 429
+        $reportCount = 0
+        $maxRetries = 5
+        for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+            try {
+                $reportCount = (Get-PowerBIReport -WorkspaceId $ws.Id -Scope Organization -ErrorAction Stop).Count
+                break
+            } catch {
+                if ($_ -match '429' -and $attempt -lt $maxRetries) {
+                    $wait = $attempt * 5
+                    Write-Warning "  429 on '$($ws.Name)' (attempt $attempt). Waiting ${wait}s..."
+                    Start-Sleep -Seconds $wait
+                } else {
+                    Write-Warning "  Could not fetch reports for '$($ws.Name)': $_"
+                    break
+                }
+            }
+        }
+        Start-Sleep -Milliseconds 1000
 
         # Fetch workspace-level Large Semantic Model storage format setting
         # defaultDatasetStorageFormat: "Small" = standard (default), "Large" = LSM enabled
@@ -120,7 +139,19 @@ try {
                 $defaultStorageFormat = $wsDetail.defaultDatasetStorageFormat
             }
         } catch {
-            Write-Warning "  Could not fetch storage format for '$($ws.Name)': $_"
+            if ($_ -match '429') {
+                Start-Sleep -Seconds 10
+                try {
+                    $wsDetail = Invoke-PowerBIRestMethod -Url "admin/groups/$($ws.Id)" -Method Get | ConvertFrom-Json
+                    if ($wsDetail.PSObject.Properties['defaultDatasetStorageFormat']) {
+                        $defaultStorageFormat = $wsDetail.defaultDatasetStorageFormat
+                    }
+                } catch {
+                    Write-Warning "  Could not fetch storage format for '$($ws.Name)': $_"
+                }
+            } else {
+                Write-Warning "  Could not fetch storage format for '$($ws.Name)': $_"
+            }
         }
 
         Write-Host "  $($ws.Name): $reportCount report(s) | $capType '$capName' ($capSku) | StorageFormat: $defaultStorageFormat" -ForegroundColor Gray
