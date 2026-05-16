@@ -16,6 +16,7 @@ Microsoft Fabric introduces F-SKU capacities that replace the traditional Power 
 | What is the dataset connectivity mode (Import vs DirectQuery / Live Connect)? | Script 02 |
 | Which reports are actively used, and by how many people? | Script 03 |
 | What activities (refresh, export, share, create, delete) are happening across the tenant? | Script 04 |
+| How do I present all findings to stakeholders in a single shareable document? | Script 10 |
 
 ---
 
@@ -23,10 +24,11 @@ Microsoft Fabric introduces F-SKU capacities that replace the traditional Power 
 
 ```
 Assessment/
-├── 01-Get-PowerBIWorkspaces.ps1          # Step 1 — Workspace & capacity inventory
-├── 02-Get-PowerBIReportsByWorkspace.ps1  # Step 2 — Report & dataset metadata
-├── 03-Get-UsageMetricByReport.ps1        # Step 3 — Usage & adoption metrics
-├── 04-Get-FabricAuditLogs.ps1            # Step 4 — Fabric / Power BI audit logs
+├── 01-Get-PowerBIWorkspaces.ps1          # Step 1  — Workspace & capacity inventory
+├── 02-Get-PowerBIReportsByWorkspace.ps1  # Step 2  — Report & dataset metadata
+├── 03-Get-UsageMetricByReport.ps1        # Step 3  — Usage & adoption metrics
+├── 04-Get-FabricAuditLogs.ps1            # Step 4  — Fabric / Power BI audit logs
+├── 99-Generate-ExecutiveReport.ps1       # Step 10 — Interactive HTML executive report
 ├── Run-Scripts.bat                       # Menu-driven launcher (Windows)
 ├── Input/                                # (reserved for future input files)
 └── Output/                               # All JSON outputs land here
@@ -55,9 +57,14 @@ Assessment/
         │
         │  Output\Fabric_AuditLog_Raw_<date>.json
         └─ Output\Fabric_AuditLog_Summary_<date>.json
+
+99-Generate-ExecutiveReport.ps1   (runs after scripts 01 & 02 — reads their output)
+        │
+        │  <OutputFolder>\Executive_Report_<CustomerName>.html
+        └─ Self-contained interactive HTML file (no server required)
 ```
 
-Scripts 01 → 02 → 03 must run **in order**. Script 04 is independent.
+Scripts 01 → 02 → 03 must run **in order**. Script 04 is independent. Script 10 requires only the output of scripts 01 and 02.
 
 ---
 
@@ -97,6 +104,14 @@ cd Assessment
 .\02-Get-PowerBIReportsByWorkspace.ps1
 .\03-Get-UsageMetricByReport.ps1
 .\04-Get-FabricAuditLogs.ps1
+
+# Generate the executive report (Portuguese, default)
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer"
+
+# English / Spanish / Portugese variants
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 1
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 2
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 3
 ```
 
 ### Option B — Service principal
@@ -244,6 +259,50 @@ Exports audit records from the **Power BI Activity Events API** for the entire o
 
 ---
 
+### `10-Generate-ExecutiveReport.ps1` — Interactive HTML executive report
+
+Reads the JSON output from scripts 01 and 02 and generates a **self-contained, single-file HTML report** that opens directly in any browser — no server, no dependencies beyond an internet connection for Chart.js.
+
+**Report sections:**
+
+| Section | Contents |
+|---|---|
+| Header | Customer name, collection date, link to this repository |
+| KPI Grid | Workspaces, Reports, Import %, DirectQuery %, Empty workspaces, Fabric workspaces |
+| Fabric Adoption | Fabric vs Premium split, SKU, capacity name, Large Semantic Model status |
+| Capacity & Connection | Doughnut charts by SKU and connection mode; bar chart by capacity name |
+| Data Sources | Top 10 data source types (bar chart) + Top 10 workspaces by report count |
+| Workspace Table | Full sortable inventory with capacity, SKU, report count, storage format, and mini bar |
+| Findings & Recommendations | Up to 8 auto-generated insight cards (Import dominance, Fabric adoption stage, empty workspaces, LSM, ODBC/Oracle, file/web sources, top-3 concentration) |
+
+**Theme toggle:** The report includes a 🔵 Blue / 🔴 Red theme switcher (both light-background themes) accessible via the fixed button in the top-right corner.
+
+**Parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `-OutputFolder` | `.\Output-BRA` | Folder containing `PowerBI_Workspaces.json` and `PowerBI_Reports_All_Workspaces.json` |
+| `-CustomerName` | Folder name | Customer display name used in the report title and header |
+| `-ReportPath` | `<OutputFolder>\Executive_Report_<CustomerName>.html` | Full path for the generated HTML file |
+| `-Language` | `3` | `1` = English · `2` = Spanish · `3` = Portuguese (pt-BR) |
+
+**Output:** `<OutputFolder>\Executive_Report_<CustomerName>.html`
+
+**Examples:**
+
+```powershell
+# Portuguese (default) — Claro Brazil
+.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Claro Brazil"
+
+# Spanish — AMX Mexico
+.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "AMX Mexico" -Language 2
+
+# English
+.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
+```
+
+---
+
 ## Output file reference
 
 | File | Produced by | Description |
@@ -255,6 +314,7 @@ Exports audit records from the **Power BI Activity Events API** for the entire o
 | `PowerBI_UsageMetrics_All.json` | Script 03 | Combined usage metrics across all workspaces |
 | `Fabric_AuditLog_Raw_<date>.json` | Script 04 | Raw audit events |
 | `Fabric_AuditLog_Summary_<date>.json` | Script 04 | Aggregated activity summary |
+| `Executive_Report_<CustomerName>.html` | Script 10 | Self-contained interactive HTML executive report |
 
 ---
 
