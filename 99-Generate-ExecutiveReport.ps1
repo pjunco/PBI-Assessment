@@ -31,7 +31,7 @@
 [CmdletBinding()]
 param (
     [string]$OutputFolder  = ".\Output-BRA",
-    [string]$CustomerName  = "America Movil Mexico",
+    [string]$CustomerName  = "Customer Name",
     [string]$ReportPath    = "",
     [ValidateSet(1,2,3)]
     [int]$Language         = 3
