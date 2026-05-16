@@ -294,13 +294,13 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 
 ```powershell
 # Portuguese (default) — Claro Brazil
-.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Claro Brazil"
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Claro Brazil"
 
 # Spanish — AMX Mexico
-.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "AMX Mexico" -Language 2
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "AMX Mexico" -Language 2
 
 # English
-.\10-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
 ```
 
 ---
