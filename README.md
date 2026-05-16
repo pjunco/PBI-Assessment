@@ -297,7 +297,7 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Contoso Brazil"
 
 # Spanish — Zafra Mexico
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "Zafra Mexico" -Language 2
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-Zafra -CustomerName "Zafra Mexico" -Language 2
 
 # English
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
