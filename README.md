@@ -293,11 +293,11 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 **Examples:**
 
 ```powershell
-# Portuguese (default) — Claro Brazil
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Claro Brazil"
+# Portuguese (default) — Contoso Brazil
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Contoso Brazil"
 
-# Spanish — AMX Mexico
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "AMX Mexico" -Language 2
+# Spanish — Zafra Mexico
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "Zafra Mexico" -Language 2
 
 # English
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
