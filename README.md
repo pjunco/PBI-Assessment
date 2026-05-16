@@ -28,7 +28,7 @@ Assessment/
 ├── 02-Get-PowerBIReportsByWorkspace.ps1  # Step 2  — Report & dataset metadata
 ├── 03-Get-UsageMetricByReport.ps1        # Step 3  — Usage & adoption metrics
 ├── 04-Get-FabricAuditLogs.ps1            # Step 4  — Fabric / Power BI audit logs
-├── 99-Generate-ExecutiveReport.ps1       # Step 10 — Interactive HTML executive report
+├── 99-Generate-ExecutiveReport.ps1       # Optional Step to generate an Interactive HTML executive report
 ├── Run-Scripts.bat                       # Menu-driven launcher (Windows)
 ├── Input/                                # (reserved for future input files)
 └── Output/                               # All JSON outputs land here
