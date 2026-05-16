@@ -263,6 +263,8 @@ Exports audit records from the **Power BI Activity Events API** for the entire o
 
 Reads the JSON output from scripts 01 and 02 and generates a **self-contained, single-file HTML report** that opens directly in any browser — no server, no dependencies beyond an internet connection for Chart.js.
 
+![Executive Report sample](executive-report-sample.png)
+
 **Report sections:**
 
 | Section | Contents |

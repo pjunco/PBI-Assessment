@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Generates a self-contained HTML executive report from PBI Assessment output files.
 
@@ -19,19 +19,19 @@
     Defaults to <OutputFolder>\Executive_Report_<CustomerName>.html
 
 .EXAMPLE
-    .\Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Claro Brazil"
+    .\Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Contoso Brazil"
 
 .PARAMETER Language
     Report language. 1 = English, 2 = Spanish, 3 = Portuguese (default).
 
 .EXAMPLE
-    .\Generate-ExecutiveReport.ps1 -OutputFolder .\Output-AMX -CustomerName "AMX Mexico" -Language 2
+    .\Generate-ExecutiveReport.ps1 -OutputFolder .\Output-MEX -CustomerName "Contoso Mexico" -Language 2
 #>
 
 [CmdletBinding()]
 param (
     [string]$OutputFolder  = ".\Output-BRA",
-    [string]$CustomerName  = "Customer Name",
+    [string]$CustomerName  = "Contoso Brazil",
     [string]$ReportPath    = "",
     [ValidateSet(1,2,3)]
     [int]$Language         = 3
