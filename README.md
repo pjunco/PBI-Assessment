@@ -286,21 +286,25 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 | `-OutputFolder` | `.\Output-BRA` | Folder containing `PowerBI_Workspaces.json` and `PowerBI_Reports_All_Workspaces.json` |
 | `-CustomerName` | Folder name | Customer display name used in the report title and header |
 | `-ReportPath` | `<OutputFolder>\Executive_Report_<CustomerName>.html` | Full path for the generated HTML file |
-| `-Language` | `3` | `1` = English · `2` = Spanish · `3` = Portuguese (pt-BR) |
+| `-Language` | `3` | `1` = English (en-US) · `2` = Spanish (es-ES) · `3` = Portuguese (pt-BR) |
 
 **Output:** `<OutputFolder>\Executive_Report_<CustomerName>.html`
 
 **Examples:**
 
 ```powershell
-# Portuguese (default) — Contoso Brazil
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Contoso Brazil"
-
-# Spanish — Zafra Mexico
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-Zafra -CustomerName "Zafra Mexico" -Language 2
 
 # English
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "Contoso" -Language 1
+
+# Spanish
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-Zafra -CustomerName "Zafra Mexico" -Language 2
+
+
+# Portuguese (default) 
+.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output-BRA -CustomerName "Contoso Brazil" -Language 3
+
+
 ```
 
 ---
