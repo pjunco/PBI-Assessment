@@ -35,11 +35,11 @@
 .PARAMETER ClientSecret
     Service principal Client Secret (as a SecureString).
 
-.EXAMPLE
+.EXAMPLE #1
     # Interactive login (uses default input path)
     .\03-Get-UsageMetricByReport.ps1
 
-.EXAMPLE
+.EXAMPLE #2
     # Service principal login
     $secret = ConvertTo-SecureString "your-secret" -AsPlainText -Force
     .\03-Get-UsageMetricByReport.ps1 -DaysBack 28 -TenantId "xxx" -ClientId "yyy" -ClientSecret $secret
