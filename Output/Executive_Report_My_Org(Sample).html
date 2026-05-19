@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Org – Power BI Assessment | Executive Report</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme = (param === 'red') ? 'red' : 'blue';
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+:root, html[data-theme="blue"] {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5; --cp-border: #dedede; --cp-border-strong: #919191;
+  --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #0078d4; --cp-accent-hover: #006bb5; --cp-accent-soft: rgba(0,120,212,0.08);
+  --cp-accent-fg: #ffffff; --cp-success: #16a34a; --cp-danger: #dc2626;
+  --cp-warning: #f59e0b; --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0,0,0,0.12); --cp-overlay: rgba(255,255,255,0.8);
+  --cp-panel: rgba(255,255,255,0.86); --cp-panel-strong: rgba(255,255,255,0.96);
+  --cp-sheen: rgba(255,255,255,0.55); --cp-highlight: rgba(0,120,212,0.12);
+}
+html[data-theme="red"] {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5; --cp-border: #dedede; --cp-border-strong: #919191;
+  --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b; --cp-accent-hover: #9a1a41; --cp-accent-soft: rgba(177,31,75,0.08);
+  --cp-accent-fg: #ffffff; --cp-success: #16a34a; --cp-danger: #dc2626;
+  --cp-warning: #f59e0b; --cp-link: #b11f4b;
+  --cp-shadow: 0 18px 48px rgba(0,0,0,0.12); --cp-overlay: rgba(255,255,255,0.8);
+  --cp-panel: rgba(255,255,255,0.86); --cp-panel-strong: rgba(255,255,255,0.96);
+  --cp-sheen: rgba(255,255,255,0.55); --cp-highlight: rgba(177,31,75,0.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cp-bg); color: var(--cp-text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+
+.report-header { background: var(--cp-link); color: #ffffff; padding: 32px 48px 28px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+.report-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+.report-header .subtitle { font-size: 0.95rem; opacity: 0.85; margin-top: 4px; }
+.report-header .meta { text-align: right; font-size: 0.82rem; opacity: 0.8; }
+
+.container { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+
+.section-title { font-size: 1.05rem; font-weight: 700; color: var(--cp-text); margin: 36px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--cp-link); display: flex; align-items: center; gap: 8px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.kpi-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 20px 24px; box-shadow: var(--cp-shadow); transition: transform 0.15s; }
+.kpi-card:hover { transform: translateY(-2px); }
+.kpi-card .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cp-text-muted); margin-bottom: 6px; }
+.kpi-card .value { font-size: 2.1rem; font-weight: 800; color: var(--cp-link); line-height: 1; }
+.kpi-card .sub { font-size: 0.8rem; color: var(--cp-text-soft); margin-top: 6px; }
+.kpi-card.fabric-card { border-left: 4px solid var(--cp-success); }
+.kpi-card.fabric-card .value { color: var(--cp-success); }
+.kpi-card.warn-card { border-left: 4px solid var(--cp-warning); }
+.kpi-card.warn-card .value { color: var(--cp-warning); }
+
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+.chart-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 20px 24px 16px; box-shadow: var(--cp-shadow); }
+.chart-card h3 { font-size: 0.85rem; font-weight: 600; color: var(--cp-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+.chart-card canvas { max-height: 260px; }
+
+.fabric-banner { background: linear-gradient(135deg, var(--cp-accent-soft), rgba(22,163,74,0.07)); border: 1px solid var(--cp-border); border-left: 4px solid var(--cp-success); border-radius: 12px; padding: 20px 28px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.fabric-item { flex: 1; min-width: 140px; }
+.fabric-item .fab-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cp-text-muted); }
+.fabric-item .fab-value { font-size: 1.5rem; font-weight: 800; color: var(--cp-success); }
+.fabric-item .fab-sub { font-size: 0.8rem; color: var(--cp-text-soft); margin-top: 2px; }
+
+.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--cp-border); box-shadow: var(--cp-shadow); }
+table { width: 100%; border-collapse: collapse; background: var(--cp-surface); }
+thead th { background: var(--cp-surface-soft); color: var(--cp-text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--cp-border); white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--cp-border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--cp-accent-soft); }
+tbody td { padding: 9px 16px; font-size: 0.85rem; vertical-align: middle; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 600; }
+.badge-fabric  { background: rgba(22,163,74,0.12); color: var(--cp-success); }
+.badge-premium { background: var(--cp-accent-soft); color: var(--cp-accent); }
+.bar-cell { display: flex; align-items: center; gap: 8px; }
+.mini-bar { height: 6px; border-radius: 3px; min-width: 2px; }
+
+.findings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.finding-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--cp-shadow); }
+.finding-card .f-icon { font-size: 1.5rem; margin-bottom: 8px; }
+.finding-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
+.finding-card p { font-size: 0.82rem; color: var(--cp-text-soft); line-height: 1.55; }
+.finding-card.rec  { border-left: 3px solid var(--cp-success); }
+.finding-card.risk { border-left: 3px solid var(--cp-warning); }
+.finding-card.info { border-left: 3px solid var(--cp-link); }
+
+.report-footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--cp-text-muted); border-top: 1px solid var(--cp-border); margin-top: 48px; }
+.theme-toggle { position: fixed; top: 16px; right: 20px; background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; color: var(--cp-text-muted); z-index: 100; box-shadow: var(--cp-shadow); }
+.theme-toggle:hover { background: var(--cp-surface-soft); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()">🔴 Red</button>
+
+<header class="report-header">
+  <div>
+    <div style="font-size:0.8rem;opacity:0.75;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px"><a href="https://github.com/pjunco/PBI-Assessment" target="_blank" style="color:inherit;text-decoration:none;opacity:0.9;">PowerBI P-SKU &#8594; Fabric F-SKU Assessment</a></div>
+    <h1>My Org – Executive Report</h1>
+    <div class="subtitle"></div>
+  </div>
+  <div class="meta">
+    <div>Collection date: May 16, 2026</div>
+    <div style="margin-top:4px">Generated by Microsoft Copilot</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="section-title"><span>📊</span> Overview</div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="section-title"><span>🟢</span> Microsoft Fabric Adoption</div>
+  <div class="fabric-banner">
+    <div class="fabric-item">
+      <div class="fab-label">Fabric Capacity</div>
+      <div class="fab-value">40</div>
+      <div class="fab-sub">workspaces (88.9% of total)</div>
+    </div>
+    <div class="fabric-item">
+      <div class="fab-label">SKU</div>
+      <div class="fab-value">F8</div>
+      <div class="fab-sub">capacity: FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7</div>
+    </div>
+    <div class="fabric-item">
+      <div class="fab-label">Workspaces on Fabric</div>
+      <div class="fab-value" style="font-size:0.9rem;margin-top:6px">WS-2935F7B0-313C-41E9-9485-E4711E6F6127 &nbsp;&#183;&nbsp; WS-463E1F81-5752-4C26-83F9-6748D185E220 &nbsp;&#183;&nbsp; WS-701D12E8-F3FC-46DA-B2E6-8E7A54AAA160 &nbsp;&#183;&nbsp; WS-A86F1E27-2FDD-4285-8AF8-D618443E8DC0 &nbsp;&#183;&nbsp; WS-18FEB90F-9B88-455B-BC6C-3DFDB02599AD &nbsp;&#183;&nbsp; ...</div>
+      <div class="fab-sub">Adoption expanding</div>
+    </div>
+    <div class="fabric-item">
+      <div class="fab-label">Large Semantic Models</div>
+      <div class="fab-value" style="font-size:0.9rem;margin-top:6px">10 enabled</div>
+      <div class="fab-sub">10 workspace(s) with Large Semantic Model enabled</div>
+    </div>
+  </div>
+
+  <div class="section-title"><span>📈</span> Capacity Distribution & Connection Mode</div>
+  <div class="chart-grid">
+    <div class="chart-card"><h3>Workspaces by Capacity SKU</h3><canvas id="skuChart"></canvas></div>
+    <div class="chart-card"><h3>Import vs DirectQuery / LiveConnect</h3><canvas id="connChart"></canvas></div>
+    <div class="chart-card"><h3>Workspaces by Capacity (name)</h3><canvas id="capChart"></canvas></div>
+  </div>
+
+  <div class="section-title"><span>🗄️</span> Data Sources (Top Data Sources)</div>
+  <div class="chart-grid">
+    <div class="chart-card" style="grid-column:span 2"><h3>Data Source frequency in datasets</h3><canvas id="dsChart" style="max-height:300px"></canvas></div>
+    <div class="chart-card"><h3>Top 10 Workspaces by Reports</h3><canvas id="topWsChart" style="max-height:340px"></canvas></div>
+  </div>
+
+  <div class="section-title"><span>📋</span> Workspaces — Full Detail</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Workspace</th><th>Type</th><th>Capacity</th><th>SKU</th><th>Reports</th><th>Storage</th></tr></thead>
+      <tbody id="wsTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><span>💡</span> Key Findings & Recommendations</div>
+  <div class="findings-grid" id="findingsGrid"></div>
+
+</div>
+
+<div class="report-footer">
+  My Org &nbsp;·&nbsp; Power BI Assessment &nbsp;·&nbsp; Generated on May 16, 2026 &nbsp;·&nbsp; Microsoft Copilot &amp; GitHub Copilot
+</div>
+
+<script>
+// ── EMBEDDED DATA ──────────────────────────────────────────────────────────
+const DATA = {
+  totalWS:      45,
+  fabricWS:     40,
+  premiumWS:    5,
+  emptyWS:      3,
+  totalReports: 500,
+  importR:      109,
+  dqR:          391,
+  unkR:         0,
+  importPct:    21.8,
+  dqPct:        78.2,
+  skuLabels:  ['F8 (40)','P2 (5)'],
+  skuData:    [40,5],
+  skuNames:   ['F8','P2'],
+  capLabels:  ['FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7','FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7'],
+  capData:    [40,5],
+  dsLabels:   ['Web','File','Informix','SharePointList','ODBC','MySQL','Oracle','AnalysisServices','OData'],
+  dsData:     [778,650,102,61,34,24,13,9,4],
+  top10Labels:['WS-2935F7B0-313C-41E9-9485-E4711E6F6127','WS-463E1F81-5752-4C26-83F9-6748D185E220','WS-701D12E8-F3FC-46DA-B2E6-8E7A54AAA160','WS-A86F1E27-2FDD-4285-8AF8-D618443E8DC0','WS-18FEB90F-9B88-455B-BC6C-3DFDB02599AD','WS-5EAEEEB2-69E7-492A-8880-84988009A00E','WS-31A4B9FC-7146-4140-9693-760371516B7A','WS-0016D2AD-7040-4CC6-9268-6A31CE6D243F','WS-EA76963C-6EE8-4BD5-BEF7-4289BC2B0EC9','WS-0496690F-95EB-4D8C-A4AE-69E35943320C'],
+  top10Data:  [49,42,38,33,29,26,23,20,18,16],
+  top10Colors:['#16a34a','#16a34a','#16a34a','#16a34a','#16a34a','#16a34a','#16a34a','#16a34a','#16a34a','#16a34a'],
+  workspaces: [
+    { name:'WS-2935F7B0-313C-41E9-9485-E4711E6F6127', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:49, storage:'Large' },
+    { name:'WS-463E1F81-5752-4C26-83F9-6748D185E220', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:42, storage:'Large' },
+    { name:'WS-701D12E8-F3FC-46DA-B2E6-8E7A54AAA160', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:38, storage:'Large' },
+    { name:'WS-A86F1E27-2FDD-4285-8AF8-D618443E8DC0', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:33, storage:'Large' },
+    { name:'WS-18FEB90F-9B88-455B-BC6C-3DFDB02599AD', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:29, storage:'Large' },
+    { name:'WS-5EAEEEB2-69E7-492A-8880-84988009A00E', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:26, storage:'Large' },
+    { name:'WS-31A4B9FC-7146-4140-9693-760371516B7A', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:23, storage:'Large' },
+    { name:'WS-0016D2AD-7040-4CC6-9268-6A31CE6D243F', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:20, storage:'Large' },
+    { name:'WS-EA76963C-6EE8-4BD5-BEF7-4289BC2B0EC9', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:18, storage:'Large' },
+    { name:'WS-0496690F-95EB-4D8C-A4AE-69E35943320C', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:16, storage:'Large' },
+    { name:'WS-0EB1F068-A2BB-43CF-9B76-175963B8785E', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:15, storage:'Small' },
+    { name:'WS-5BC779B8-CFCD-4A1A-B6BD-DA03DED7535D', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:14, storage:'Small' },
+    { name:'WS-0DA88748-9B48-4FF5-903E-0F4C27CC4C26', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:13, storage:'Small' },
+    { name:'WS-C8074DB7-DD3B-48DF-AB4B-C3F802739340', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:12, storage:'Small' },
+    { name:'WS-BC38D477-ED15-43AF-AD4E-D35B1D0AFDBE', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:11, storage:'Small' },
+    { name:'WS-F4364E4C-A627-4BAA-860B-647D4A840AC0', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:10, storage:'Small' },
+    { name:'WS-9296055C-0457-4B50-8EFD-8296D91E8677', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:9, storage:'Small' },
+    { name:'WS-4095685D-1CC1-4C94-94DB-11C602CD5C06', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:8, storage:'Small' },
+    { name:'WS-2840B867-453F-43DC-89A2-3ECA084E43CF', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:7, storage:'Small' },
+    { name:'WS-F9B23584-D364-494B-801E-0A42594CFE64', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:6, storage:'Small' },
+    { name:'WS-D7E3036A-26AD-4D25-8726-1FAFE7C3AC89', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:5, storage:'Small' },
+    { name:'WS-6FBEEC28-35D4-44FC-8F43-792675FDA2A7', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:5, storage:'Small' },
+    { name:'WS-FEB68029-07CE-421B-BDA5-E58AADF66AD7', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:5, storage:'Small' },
+    { name:'WS-FC8E78DC-AB03-4A4F-9034-A19B3877A4BA', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:4, storage:'Small' },
+    { name:'WS-A109E203-9D39-40AE-9580-907198833FB2', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:4, storage:'Small' },
+    { name:'WS-63E61BC5-4E47-46A1-87D3-9EDF1A07C1CD', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:4, storage:'Small' },
+    { name:'WS-534C1105-9D94-47E3-B7AD-D0F4600BBC81', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:4, storage:'Small' },
+    { name:'WS-239FB0DC-9B90-4717-9F47-878D6B7D1301', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:4, storage:'Small' },
+    { name:'WS-ADE391F6-4D3D-4F54-B954-6FB6738881BB', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:3, storage:'Small' },
+    { name:'WS-AAF36736-AAAA-46DB-94B4-99A790680169', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:3, storage:'Small' },
+    { name:'WS-0AE7A71E-D2D3-4865-93A5-321772D7807E', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:3, storage:'Small' },
+    { name:'WS-2C44C129-1617-4BEC-B443-9F35A8246113', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:3, storage:'Small' },
+    { name:'WS-2E28237A-D1DF-4FE4-B7D1-B9FE45BEFF49', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-B634F456-C04B-4C29-AB2A-91B634869A58', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-F8EB0460-0FD4-4E9D-86B1-A2447BEAF413', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-21EE3CE2-7C55-4BD7-B251-60FB962ABC1C', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-6C222A5D-5069-4C2C-907F-27726BF87B6A', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-B01A2125-5DBB-438B-B362-C000AA83EEC4', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-6F11D775-748D-4DDE-849B-A58C41B6BF49', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-AB39F973-391D-4403-822F-6C07E3B6CD7B', cap:'FC-14800E29-5ADB-4FEE-86B4-DFDD10ABE8C7', sku:'F8', type:'Fabric Capacity', reports:2, storage:'Small' },
+    { name:'WS-BD2CD6B5-5C65-4C8E-857F-F069E90DD9A1', cap:'FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7', sku:'P2', type:'PBI Premium Capacity', reports:12, storage:'Small' },
+    { name:'WS-3F6BBD27-4159-4369-A875-0F0E6E905547', cap:'FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7', sku:'P2', type:'PBI Premium Capacity', reports:10, storage:'Small' },
+    { name:'WS-D2D75350-EA56-4FEF-9855-04457943D4AB', cap:'FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7', sku:'P2', type:'PBI Premium Capacity', reports:7, storage:'Small' },
+    { name:'WS-D6C2A714-7A17-46B4-9B13-A7245FC25359', cap:'FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7', sku:'P2', type:'PBI Premium Capacity', reports:5, storage:'Small' },
+    { name:'WS-7B467EBD-1E6B-4C1A-8C6D-A180E396AAE0', cap:'FC-31BAF7E0-0480-4A5A-8B64-CF38437409C7', sku:'P2', type:'PBI Premium Capacity', reports:4, storage:'Small' }
+  ]
+};
+
+// ── TRANSLATIONS ────────────────────────────────────────────────────────────
+const T = {
+  kpiWSLabel:      'Workspaces',
+  kpiWSSub:        'with dedicated capacity',
+  kpiRepLabel:     'Reports',
+  kpiRepSub:       'across all workspaces',
+  kpiImpLabel:     'Import Mode',
+  kpiRepWord:      'reports',
+  kpiDQLabel:      'DirectQuery/Live',
+  kpiEmptyLabel:   'Empty (0 rep.)',
+  kpiEmptySub:     '% of workspaces',
+  kpiFabLabel:     'Fabric Capacity',
+  kpiFabSub:       'workspaces on Fabric',
+  connImport:      'Import',
+  connDQ:          'DirectQuery/Live',
+  connUnk:         'Unknown',
+  connLabel:       'Connections',
+  fImpHighTitle:   'Import Mode Dominance',
+  fImpHighText:    'The vast majority of reports use Import Mode — data is copied into Power BI. This is efficient for performance but may increase capacity consumption and create data latency. Consider DirectLake in Fabric for real-time critical data.',
+  fDQHighTitle:    'Significant DirectQuery Usage',
+  fDQHighText:     'With PCTX% in DirectQuery/LiveConnect, the load on data sources is high. Review query performance and consider optimizing with Aggregations or migrating critical datasets to Import Mode in Fabric.',
+  fFab0Title:      'No Fabric Workspaces',
+  fFab0Text:       'The tenant has no workspaces on Microsoft Fabric capacity. Consider evaluating a migration pilot to leverage Lakehouse, DirectLake, Pipelines, and unified OneLake governance.',
+  fFabPilotTitle:  'Fabric Adoption Beginning',
+  fFabPilotText:   'Microsoft Fabric adoption is in a pilot phase. A structured roadmap is recommended to expand usage, especially in the highest-volume and most critical workspaces.',
+  fFabGoodTitle:   'Relevant Fabric Adoption',
+  fFabGoodText:    'The tenant shows consistent Microsoft Fabric adoption. Evaluate opportunities to consolidate more workloads in Fabric to reduce Premium capacity costs and improve data governance.',
+  fEmptyTitle:     'Workspaces Without Reports',
+  fEmptyText:      '% of workspaces have no published reports, consuming capacity without generating visible value. An audit to deactivate or consolidate idle workspaces is recommended.',
+  fLSMTitle:       'Large Semantic Models (LSM)',
+  fLSMEnabledText: 'Some workspaces already use Large Semantic Models. Ensure enablement is aligned with the actual need for datasets over 1 GB.',
+  fLSMDisabledText:'No workspace has Large Semantic Models enabled. For datasets over 1 GB on dedicated capacity, enabling LSM can improve performance and scalability.',
+  fODBCTitle:      'Legacy Sources: ODBC / Oracle Identified',
+  fODBCText:       'ODBC and Oracle connections were identified. These connections are difficult to monitor centrally and may represent failure points. Gradual replacement with native connectors or a managed gateway is recommended for better governance.',
+  fFileTitle:      'File & Web API Dependency',
+  fFileText:       'Sources such as File, Folder, and Web are common in this environment. Dependencies on local files and external URLs represent operational risk. Migrating these sources to a Fabric Lakehouse or warehouse increases resilience and governance.',
+  fTop3Title:      'Top 3 Workspaces Concentrate',
+  fTop3Of:         '% of Reports',
+  fTop3Sum:        'total REPSX reports. These workspaces are critical and should have priority governance, monitoring, and capacity SLAs.',
+  wsAnd:           'and',
+  themeBtnBlue:    '🔵 Blue',
+  themeBtnRed:     '🔴 Red',
+};
+
+// ── KPI CARDS ───────────────────────────────────────────────────────────────
+const kpis = [
+  { label: T.kpiWSLabel,    value: DATA.totalWS,                        sub: T.kpiWSSub,                                                          cls: '' },
+  { label: T.kpiRepLabel,   value: DATA.totalReports.toLocaleString(),   sub: T.kpiRepSub,                                                         cls: '' },
+  { label: T.kpiImpLabel,   value: DATA.importPct + '%',                 sub: DATA.importR + ' ' + T.kpiRepWord,                                   cls: '' },
+  { label: T.kpiDQLabel,    value: DATA.dqPct + '%',                     sub: DATA.dqR + ' ' + T.kpiRepWord,                                       cls: 'warn-card' },
+  { label: T.kpiEmptyLabel, value: DATA.emptyWS,                         sub: (Math.round(DATA.emptyWS/Math.max(DATA.totalWS,1)*1000)/10) + T.kpiEmptySub, cls: 'warn-card' },
+  { label: T.kpiFabLabel,   value: DATA.fabricWS,                        sub: T.kpiFabSub,                                                         cls: 'fabric-card' },
+];
+const kpiGrid = document.getElementById('kpiGrid');
+kpis.forEach(k => {
+  kpiGrid.innerHTML += '<div class="kpi-card ' + k.cls + '"><div class="label">' + k.label + '</div><div class="value">' + k.value + '</div><div class="sub">' + k.sub + '</div></div>';
+});
+
+// ── WORKSPACE TABLE ─────────────────────────────────────────────────────────
+const tbody = document.getElementById('wsTableBody');
+const maxR = Math.max(...DATA.workspaces.map(w => w.reports), 1);
+DATA.workspaces.forEach((w, i) => {
+  const isFabric = w.type === 'Fabric Capacity';
+  const barW = Math.round(w.reports / maxR * 80);
+  const barColor = isFabric ? '#16a34a' : '#b11f4b';
+  const skuColor = { P2:'#b11f4b', P1:'#0078d4', PP3:'#f59e0b', F8:'#16a34a', A1:'#8b5cf6' }[w.sku] || '#919191';
+  tbody.innerHTML += '<tr>' +
+    '<td style="color:var(--cp-text-muted)">' + (i+1) + '</td>' +
+    '<td><strong>' + w.name + '</strong></td>' +
+    '<td><span class="badge ' + (isFabric?'badge-fabric':'badge-premium') + '">' + (isFabric?'\ud83d\udfe2 Fabric':'\ud83d\udd35 Premium') + '</span></td>' +
+    '<td style="color:var(--cp-text-soft);font-size:0.8rem">' + w.cap + '</td>' +
+    '<td style="color:' + skuColor + ';font-weight:700">' + w.sku + '</td>' +
+    '<td><div class="bar-cell"><div class="mini-bar" style="width:' + barW + 'px;background:' + barColor + '"></div><span>' + w.reports + '</span></div></td>' +
+    '<td style="color:var(--cp-text-soft)">' + w.storage + '</td>' +
+    '</tr>';
+});
+
+// ── FINDINGS ────────────────────────────────────────────────────────────────
+const findings = [];
+
+// Import mode
+if (DATA.importPct >= 90) {
+  findings.push({ cls:'rec', icon:'📦', title: T.fImpHighTitle + ' (' + DATA.importPct + '%)', text: T.fImpHighText });
+} else if (DATA.dqPct >= 20) {
+  findings.push({ cls:'info', icon:'⚡', title: T.fDQHighTitle + ' (' + DATA.dqPct + '%)', text: T.fDQHighText.replace('PCTX', DATA.dqPct) });
+}
+
+// Fabric adoption
+if (DATA.fabricWS === 0) {
+  findings.push({ cls:'risk', icon:'⚠️', title: T.fFab0Title, text: T.fFab0Text });
+} else if (DATA.fabricWS <= 3) {
+  findings.push({ cls:'rec', icon:'🟢', title: T.fFabPilotTitle + ' (' + DATA.fabricWS + ' workspace' + (DATA.fabricWS>1?'s':'') + ')', text: T.fFabPilotText });
+} else {
+  findings.push({ cls:'rec', icon:'🚀', title: T.fFabGoodTitle + ' (' + DATA.fabricWS + ' workspaces)', text: T.fFabGoodText });
+}
+
+// Empty workspaces
+if (DATA.emptyWS > 0) {
+  findings.push({ cls:'risk', icon:'⚠️',
+    title: DATA.emptyWS + ' ' + T.fEmptyTitle,
+    text: Math.round(DATA.emptyWS/Math.max(DATA.totalWS,1)*100) + T.fEmptyText });
+}
+
+// LSM
+findings.push({ cls:'info', icon:'🗃️', title: T.fLSMTitle,
+  text: DATA.workspaces.filter(w=>w.storage==='Large').length > 0 ? T.fLSMEnabledText : T.fLSMDisabledText });
+
+// Data sources
+const hasODBC    = DATA.dsLabels.includes('ODBC');
+const hasOracle  = DATA.dsLabels.includes('Oracle');
+const hasFileWeb = DATA.dsLabels.includes('File') || DATA.dsLabels.includes('Web') || DATA.dsLabels.includes('Folder');
+if (hasODBC || hasOracle) {
+  findings.push({ cls:'info', icon:'🔌', title: T.fODBCTitle, text: T.fODBCText });
+}
+if (hasFileWeb) {
+  findings.push({ cls:'risk', icon:'📂', title: T.fFileTitle, text: T.fFileText });
+}
+
+// Top workspace concentration
+const top3Reports = DATA.workspaces.slice(0,3).reduce((a,w)=>a+w.reports,0);
+const top3Pct = DATA.totalReports>0 ? Math.round(top3Reports/DATA.totalReports*100) : 0;
+if (top3Pct > 30) {
+  findings.push({ cls:'info', icon:'🏆',
+    title: T.fTop3Title + ' ' + top3Pct + T.fTop3Of,
+    text: (DATA.workspaces[0]?.name||'') + ', ' + (DATA.workspaces[1]?.name||'') + ' ' + T.wsAnd + ' ' + (DATA.workspaces[2]?.name||'') + ' — ' + T.fTop3Sum.replace('REPSX', top3Reports) });
+}
+
+const fg = document.getElementById('findingsGrid');
+findings.forEach(f => {
+  fg.innerHTML += '<div class="finding-card ' + f.cls + '"><div class="f-icon">' + f.icon + '</div><h4>' + f.title + '</h4><p>' + f.text + '</p></div>';
+});
+
+// ── CHARTS ──────────────────────────────────────────────────────────────────
+const PALETTE = ['#b11f4b','#0078d4','#f59e0b','#16a34a','#8b5cf6','#ec4899','#f97316','#14b8a6','#64748b','#e11d48'];
+
+new Chart(document.getElementById('skuChart'), {
+  type: 'doughnut',
+  data: { labels: DATA.skuLabels, datasets: [{ data: DATA.skuData, backgroundColor: PALETTE, borderWidth: 2, borderColor: 'var(--cp-surface)' }] },
+  options: { plugins: { legend: { position:'bottom', labels: { color:'var(--cp-text)', font:{size:11} } } }, cutout:'62%' }
+});
+
+new Chart(document.getElementById('connChart'), {
+  type: 'doughnut',
+  data: {
+    labels: [T.connImport + ' (' + DATA.importR + ')', T.connDQ + ' (' + DATA.dqR + ')', T.connUnk + ' (' + DATA.unkR + ')'],
+    datasets: [{ data: [DATA.importR, DATA.dqR, DATA.unkR], backgroundColor: ['#b11f4b','#f59e0b','#919191'], borderWidth: 2, borderColor: 'var(--cp-surface)' }]
+  },
+  options: { plugins: { legend: { position:'bottom', labels: { color:'var(--cp-text)', font:{size:11} } } }, cutout:'62%' }
+});
+
+new Chart(document.getElementById('capChart'), {
+  type: 'bar',
+  data: { labels: DATA.capLabels, datasets: [{ label:'Workspaces', data: DATA.capData, backgroundColor: PALETTE, borderRadius: 6 }] },
+  options: { indexAxis:'y', plugins:{ legend:{display:false} }, scales: { x:{ticks:{color:'var(--cp-text-muted)'},grid:{color:'var(--cp-border)'}}, y:{ticks:{color:'var(--cp-text)',font:{size:11}},grid:{display:false}} } }
+});
+
+new Chart(document.getElementById('dsChart'), {
+  type: 'bar',
+  data: { labels: DATA.dsLabels, datasets: [{ label: T.connLabel, data: DATA.dsData, backgroundColor: PALETTE, borderRadius: 6 }] },
+  options: { plugins:{ legend:{display:false} }, scales: { x:{ticks:{color:'var(--cp-text-muted)'},grid:{color:'var(--cp-border)'}}, y:{ticks:{color:'var(--cp-text)'},grid:{color:'var(--cp-border)'}} } }
+});
+
+new Chart(document.getElementById('topWsChart'), {
+  type: 'bar',
+  data: { labels: DATA.top10Labels, datasets: [{ label: T.kpiRepLabel, data: DATA.top10Data, backgroundColor: DATA.top10Colors, borderRadius: 6 }] },
+  options: { indexAxis:'y', plugins:{ legend:{display:false} }, scales: { x:{ticks:{color:'var(--cp-text-muted)'},grid:{color:'var(--cp-border)'}}, y:{ticks:{color:'var(--cp-text)',font:{size:11}},grid:{display:false}} } }
+});
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'red' ? 'blue' : 'red';
+  document.documentElement.setAttribute('data-theme', next);
+  document.querySelector('.theme-toggle').textContent = next === 'red' ? T.themeBtnBlue : T.themeBtnRed;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,777 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Org – Power BI Usage Metrics Report</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme = (param === 'red') ? 'red' : 'blue';
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+:root, html[data-theme="blue"] {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5; --cp-border: #dedede; --cp-border-strong: #919191;
+  --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #0078d4; --cp-accent-hover: #006bb5; --cp-accent-soft: rgba(0,120,212,0.08);
+  --cp-accent-fg: #ffffff; --cp-success: #16a34a; --cp-danger: #dc2626;
+  --cp-warning: #f59e0b; --cp-link: #0078d4;
+  --cp-shadow: 0 2px 12px rgba(0,0,0,0.08); --cp-overlay: rgba(255,255,255,0.8);
+}
+html[data-theme="red"] {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5; --cp-border: #dedede; --cp-border-strong: #919191;
+  --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b; --cp-accent-hover: #9a1a41; --cp-accent-soft: rgba(177,31,75,0.08);
+  --cp-accent-fg: #ffffff; --cp-success: #16a34a; --cp-danger: #dc2626;
+  --cp-warning: #f59e0b; --cp-link: #b11f4b;
+  --cp-shadow: 0 2px 12px rgba(0,0,0,0.08); --cp-overlay: rgba(255,255,255,0.8);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--cp-bg); color: var(--cp-text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+
+.report-header { background: var(--cp-link); color: #fff; padding: 28px 48px 24px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+.report-header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.report-header .subtitle { font-size: 0.88rem; opacity: 0.82; margin-top: 4px; }
+.report-header .meta { text-align: right; font-size: 0.8rem; opacity: 0.8; }
+
+.container { max-width: 1280px; margin: 0 auto; padding: 28px 24px 64px; }
+
+.section-title { font-size: 1rem; font-weight: 700; color: var(--cp-text); margin: 32px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--cp-link); display: flex; align-items: center; gap: 8px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.kpi-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--cp-shadow); }
+.kpi-card .label { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cp-text-muted); margin-bottom: 5px; }
+.kpi-card .value { font-size: 2rem; font-weight: 800; color: var(--cp-link); line-height: 1; }
+.kpi-card .sub { font-size: 0.78rem; color: var(--cp-text-soft); margin-top: 5px; }
+.kpi-card.good  { border-left: 4px solid var(--cp-success); }
+.kpi-card.good .value  { color: var(--cp-success); }
+.kpi-card.warn  { border-left: 4px solid var(--cp-warning); }
+.kpi-card.warn .value  { color: var(--cp-warning); }
+.kpi-card.danger { border-left: 4px solid var(--cp-danger); }
+.kpi-card.danger .value { color: var(--cp-danger); }
+
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.chart-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 18px 20px 14px; box-shadow: var(--cp-shadow); }
+.chart-card h3 { font-size: 0.8rem; font-weight: 600; color: var(--cp-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
+.chart-card canvas { max-height: 280px; }
+
+.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--cp-border); box-shadow: var(--cp-shadow); }
+table { width: 100%; border-collapse: collapse; background: var(--cp-surface); }
+thead th { background: var(--cp-surface-soft); color: var(--cp-text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--cp-border); white-space: nowrap; cursor: pointer; user-select: none; }
+thead th:hover { color: var(--cp-link); }
+thead th.sorted-asc::after  { content: ' ↑'; color: var(--cp-link); }
+thead th.sorted-desc::after { content: ' ↓'; color: var(--cp-link); }
+tbody tr { border-bottom: 1px solid var(--cp-border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--cp-accent-soft); }
+tbody td { padding: 8px 14px; font-size: 0.83rem; vertical-align: middle; }
+
+.badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 0.7rem; font-weight: 600; }
+.badge-fabric  { background: rgba(22,163,74,0.12); color: var(--cp-success); }
+.badge-premium { background: var(--cp-accent-soft); color: var(--cp-accent); }
+.badge-active  { background: rgba(22,163,74,0.12); color: var(--cp-success); }
+.badge-dormant { background: rgba(245,158,11,0.12); color: var(--cp-warning); }
+
+.bar-mini { display: inline-block; height: 6px; border-radius: 3px; min-width: 2px; vertical-align: middle; margin-right: 6px; }
+
+.findings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.finding-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; padding: 16px 18px; box-shadow: var(--cp-shadow); }
+.finding-card .f-icon { font-size: 1.4rem; margin-bottom: 7px; }
+.finding-card h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 5px; }
+.finding-card p  { font-size: 0.8rem; color: var(--cp-text-soft); line-height: 1.55; }
+.finding-card.rec   { border-left: 3px solid var(--cp-success); }
+.finding-card.risk  { border-left: 3px solid var(--cp-warning); }
+.finding-card.info  { border-left: 3px solid var(--cp-link); }
+.ref-card { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 12px; box-shadow: var(--cp-shadow); margin-bottom: 18px; }
+.ref-card summary { list-style: none; display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--cp-text); user-select: none; gap: 12px; }
+.ref-card summary::-webkit-details-marker { display: none; }
+.ref-card summary:hover { background: var(--cp-surface-soft); border-radius: 12px; }
+.ref-card[open] summary { border-bottom: 1px solid var(--cp-border); border-radius: 12px 12px 0 0; }
+.ref-arrow { color: var(--cp-link); font-size: 0.7rem; flex-shrink: 0; transition: transform 0.2s; }
+.ref-card[open] .ref-arrow { transform: rotate(90deg); }
+.ref-body { padding: 12px 18px 16px; }
+.ref-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0 24px; }
+.ref-item { display: flex; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--cp-border); }
+.ref-item:last-child { border-bottom: none; }
+.ref-icon { font-size: 1rem; flex-shrink: 0; margin-top: 2px; line-height: 1.4; }
+.ri-label { font-size: 0.82rem; font-weight: 700; color: var(--cp-text); margin-bottom: 2px; }
+.ri-desc  { font-size: 0.78rem; color: var(--cp-text-soft); line-height: 1.45; }
+
+.theme-toggle { position: fixed; top: 14px; right: 18px; background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 0.78rem; color: var(--cp-text-muted); z-index: 100; box-shadow: var(--cp-shadow); }
+.theme-toggle:hover { background: var(--cp-surface-soft); }
+.report-footer { text-align: center; padding: 20px; font-size: 0.76rem; color: var(--cp-text-muted); border-top: 1px solid var(--cp-border); margin-top: 40px; }
+
+.search-bar { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-bar input { max-width: 400px; flex: 1 1 200px; padding: 7px 12px; border: 1px solid var(--cp-border); border-radius: 8px; font-size: 0.85rem; color: var(--cp-text); background: var(--cp-surface); outline: none; }
+.search-bar input:focus { border-color: var(--cp-link); }
+.status-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.status-btn { padding: 5px 14px; border: 1px solid var(--cp-border); border-radius: 20px; font-size: 0.78rem; font-weight: 600; cursor: pointer; background: var(--cp-surface); color: var(--cp-text-muted); transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.status-btn:hover { border-color: var(--cp-link); color: var(--cp-link); }
+.status-btn.sb-active { background: var(--cp-link); color: #fff; border-color: var(--cp-link); }
+a.report-link { color: var(--cp-link); text-decoration: none; }
+a.report-link:hover { text-decoration: underline; }
+.date-slicer { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; padding:10px 14px; background:var(--cp-surface); border:1px solid var(--cp-border); border-radius:10px; box-shadow:var(--cp-shadow); }
+.date-slicer label { font-size:0.82rem; color:var(--cp-text-muted); font-weight:600; }
+.date-slicer input[type=date] { padding:4px 8px; border:1px solid var(--cp-border); border-radius:6px; font-size:0.82rem; color:var(--cp-text); background:var(--cp-surface); outline:none; cursor:pointer; }
+.date-slicer input[type=date]:focus { border-color:var(--cp-link); }
+.date-slicer .ds-btn { padding:4px 12px; border:1px solid var(--cp-link); border-radius:6px; font-size:0.82rem; color:var(--cp-link); background:var(--cp-surface); cursor:pointer; }
+.date-slicer .ds-btn:hover { background:var(--cp-accent-soft); }
+.date-slicer .ds-btn-reset { border-color:var(--cp-border); color:var(--cp-text-muted); }
+.date-slicer .ds-info { font-size:0.78rem; color:var(--cp-text-muted); margin-left:4px; }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()">🔴 Red</button>
+
+<header class="report-header">
+  <div>
+    <div style="font-size:0.78rem;opacity:0.72;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Power BI Usage Metrics Report</div>
+    <h1>My Org</h1>
+    <div class="subtitle">Period: 2026-04-20 &rarr; 2026-05-17 (28 days)</div>
+  </div>
+  <div class="meta">
+    <div>May 18, 2026</div>
+    <div style="margin-top:3px">Generated by Microsoft Copilot</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="section-title"><span>�️</span> Usage Summary</div>
+  <div class="table-wrap" style="margin-bottom:4px">
+    <table id="summaryTable">
+      <thead><tr>
+        <th onclick="sortTable('summaryTable',0)">Workspace</th>
+        <th onclick="sortTable('summaryTable',1)">Capacity</th>
+        <th onclick="sortTable('summaryTable',2)" style="text-align:right">Reports</th>
+        <th onclick="sortTable('summaryTable',3)" style="text-align:right">Total Views</th>
+        <th onclick="sortTable('summaryTable',4)" style="text-align:right">Viewers</th>
+        <th onclick="sortTable('summaryTable',5)" style="text-align:right">Active</th>
+      </tr></thead>
+      <tbody id="summaryTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><span>�📊</span> Usage Overview</div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="section-title"><span>📈</span> Daily Views Trend</div>
+  <div class="date-slicer" id="dateSlicer">
+    <label>Period:</label>
+    <input type="date" id="dsFrom" />
+    <span style="font-size:0.82rem;color:var(--cp-text-muted)">to</span>
+    <input type="date" id="dsTo" />
+    <button class="ds-btn" onclick="applyDateSlicer()">Apply</button>
+    <button class="ds-btn ds-btn-reset" onclick="resetDateSlicer()">Reset</button>
+    <span class="ds-info" id="dsRangeInfo"></span>
+  </div>
+  <div class="chart-card" style="margin-bottom:18px">
+    <h3 id="trendTitle"></h3>
+    <canvas id="trendChart" style="max-height:220px"></canvas>
+  </div>
+
+  <div class="section-title"><span>🏆</span> Top 15 Reports</div>
+  <div class="chart-card" style="margin-bottom:18px">
+    <h3>Top 15 Reports by Total Views</h3>
+    <canvas id="top15Chart" style="max-height:360px"></canvas>
+  </div>
+
+  <div class="section-title"><span>⚡</span> Report Performance</div>
+  <div class="chart-grid" style="margin-bottom:18px">
+    <div class="chart-card">
+      <h3>Consumption Method</h3>
+      <canvas id="accessChart" style="max-height:260px"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Browser</h3>
+      <canvas id="browserChart" style="max-height:260px"></canvas>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-bottom:14px">
+    <table id="perfTable">
+      <thead><tr>
+        <th onclick="sortTable('perfTable',0)">Report</th>
+        <th onclick="sortTable('perfTable',1)">Workspace</th>
+        <th onclick="sortTable('perfTable',2)" style="text-align:right">Views</th>
+        <th onclick="sortTable('perfTable',3)" style="text-align:right">Viewers</th>
+        <th onclick="sortTable('perfTable',4)" style="text-align:right">First Half</th>
+        <th onclick="sortTable('perfTable',5)" style="text-align:right">Second Half</th>
+        <th style="text-align:center">Trend</th>
+        <th>Access</th>
+      </tr></thead>
+      <tbody id="perfTableBody"></tbody>
+    </table>
+  </div>
+  <div style="background:var(--cp-surface);border:1px solid var(--cp-border);border-left:3px solid var(--cp-link);border-radius:12px;padding:16px 18px;box-shadow:var(--cp-shadow);margin-bottom:8px">
+    <div style="font-size:1.2rem;margin-bottom:6px">ℹ️</div>
+    <h4 style="font-size:0.88rem;font-weight:700;margin-bottom:5px">About Opening Time Metrics</h4>
+    <p style="font-size:0.8rem;color:var(--cp-text-soft);line-height:1.55">Typical opening time (p50), daily performance percentiles (P25/P50/P75), and browser-specific timing metrics are available in the built-in Power BI Usage Metrics report for each workspace. The Engagement Trend column above compares view activity from the first vs. second half of the measurement period as a proxy for report popularity changes over time.</p>
+  </div>
+
+  <div id="laSection" style="display:none;margin-top:18px">
+    <div class="chart-card" style="margin-bottom:18px">
+      <h3>Daily Query Performance — P25 / P50 / P75 (ms)</h3>
+      <canvas id="dailyPerfChart" style="max-height:220px"></canvas>
+    </div>
+    <div style="margin-bottom:8px;padding:0 2px">
+      <h3 style="font-size:0.95rem;font-weight:700;color:var(--cp-text);margin-bottom:10px">Query Timing per Report (Log Analytics)</h3>
+    </div>
+    <div class="table-wrap" style="margin-bottom:12px">
+      <table id="timingTable">
+        <thead><tr>
+          <th onclick="sortTable('timingTable',0)">Report</th>
+          <th onclick="sortTable('timingTable',1)">Workspace</th>
+          <th onclick="sortTable('timingTable',2)" style="text-align:right">Queries</th>
+          <th onclick="sortTable('timingTable',3)" style="text-align:right">P25 (ms)</th>
+          <th onclick="sortTable('timingTable',4)" style="text-align:right">P50 (ms)</th>
+          <th onclick="sortTable('timingTable',5)" style="text-align:right">P75 (ms)</th>
+          <th style="text-align:center">Trend</th>
+        </tr></thead>
+        <tbody id="timingTableBody"></tbody>
+      </table>
+    </div>
+    <div style="background:var(--cp-surface);border:1px solid var(--cp-border);border-left:3px solid var(--cp-border-strong);border-radius:10px;padding:12px 16px;font-size:0.78rem;color:var(--cp-text-soft);margin-bottom:8px">
+      Source: Azure Log Analytics <em>PowerBIDatasetsWorkspace</em> — <em>AnalysisServices.QueryEnd</em> events. Values are server-side dataset query durations in milliseconds and do not include network transit or visual rendering time. Trend column compares median (P50) from first half vs. second half of the period (&#x2191; = improved, &#x2193; = degraded).
+    </div>
+  </div>
+
+  <div class="section-title"><span>🗂️</span> Workspace Summary</div>
+  <div class="table-wrap">
+    <table id="wsTable">
+      <thead><tr>
+        <th onclick="sortTable('wsTable',0)">Workspace</th>
+        <th onclick="sortTable('wsTable',1)">Capacity</th>
+        <th onclick="sortTable('wsTable',2)">Reports</th>
+        <th onclick="sortTable('wsTable',3)">Total Views</th>
+        <th onclick="sortTable('wsTable',4)">Viewers</th>
+        <th onclick="sortTable('wsTable',5)">Active</th>
+        <th>Top Report</th>
+      </tr></thead>
+      <tbody id="wsTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><span>📋</span> All Reports — Ranked by Views</div>
+  <div class="search-bar">
+    <input type="text" id="reportSearch" placeholder="🔍 Filter reports..." oninput="filterReports()" />
+    <div class="status-btns">
+      <button class="status-btn sb-active" id="sbAll"     onclick="setStatusFilter('all')">All</button>
+      <button class="status-btn"           id="sbActive"  onclick="setStatusFilter('active')">&#x25CF; Active</button>
+      <button class="status-btn"           id="sbDormant" onclick="setStatusFilter('dormant')">&#x25CB; Dormant</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="reportTable">
+      <thead><tr>
+        <th onclick="sortTable('reportTable',0)">#</th>
+        <th onclick="sortTable('reportTable',1)">Report</th>
+        <th onclick="sortTable('reportTable',2)">Workspace</th>
+        <th onclick="sortTable('reportTable',3)">Views</th>
+        <th onclick="sortTable('reportTable',4)">Viewers</th>
+        <th onclick="sortTable('reportTable',5)">Shares</th>
+        <th>Top Page</th>
+        <th>Access</th>
+      </tr></thead>
+      <tbody id="reportTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><span>�</span> Report Metrics Reference</div>
+  <details class="ref-card">
+    <summary><span>Power BI Usage Metrics — Available Metrics in the Report List</span><span class="ref-arrow">&#9654;</span></summary>
+    <div class="ref-body">
+      <div class="ref-grid">
+        <div class="ref-item"><div class="ref-icon">📊</div><div><div class="ri-label">Active reports</div><div class="ri-desc">Reports currently being used within the workspace.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">👁️</div><div><div class="ri-label">Total views</div><div class="ri-desc">Total number of report opens across all reports.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">👤</div><div><div class="ri-label">Total viewers</div><div class="ri-desc">Total number of unique users who accessed reports.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">📈</div><div><div class="ri-label">View trend</div><div class="ri-desc">Compares report view activity between the first and second halves of the selected time period to identify usage growth or decline.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">📭</div><div><div class="ri-label">Unused reports</div><div class="ri-desc">Number of reports that have not been opened during the selected timeframe.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">📋</div><div><div class="ri-label">Report usage table</div><div class="ri-desc">Detailed breakdown showing report contribution to overall usage, including open percentages, user engagement, viewing trends, and active days.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">🔗</div><div><div class="ri-label">Distribution method</div><div class="ri-desc">Indicates how users gained access to reports, such as workspace membership, direct sharing, or app installation.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">🖥️</div><div><div class="ri-label">Platform slicer</div><div class="ri-desc">Filters usage by access platform, including Power BI Service, Embedded, or mobile devices.</div></div></div>
+        <div class="ref-item"><div class="ref-icon">🆔</div><div><div class="ri-label">Unique viewers</div><div class="ri-desc">Counts individual users (based on Microsoft Entra ID) who opened a report at least once and shows report opens by viewer.</div></div></div>
+      </div>
+    </div>
+  </details>
+
+  <div class="section-title"><span>�💡</span> Key Findings &amp; Recommendations</div>
+  <div class="findings-grid" id="findingsGrid"></div>
+
+</div>
+
+<div class="report-footer">
+  My Org &nbsp;·&nbsp; Power BI Usage Metrics Report &nbsp;·&nbsp; May 18, 2026 &nbsp;·&nbsp; Generated by Microsoft Copilot
+</div>
+
+<script>
+// ── EMBEDDED DATA ─────────────────────────────────────────────────────────────
+const D = {
+  totalViews:     1411,
+  totalViewers:   121,
+  totalShares:    0,
+  activeReports:  73,
+  dormantReports: 144,
+  totalReports:   217,
+  activePct:      33.6,
+  periodDays:     28,
+  trendLabels:    ["2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-09","2026-05-10","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-16","2026-05-17"],
+  trendData:      [30,70,64,3,28,111,36,153,74,1,4,54,58,122,147,48,4,3,88,100,79,96,33,2,3],
+  top15Labels:    ["RPT-0001","RPT-0002","RPT-0003","RPT-0004","RPT-0005","RPT-0006","RPT-0007","RPT-0009","RPT-0008","RPT-0010","RPT-0011","RPT-0012","RPT-0013","RPT-0014","RPT-0016"],
+  top15Data:      [171,113,101,90,66,63,61,58,58,50,49,35,34,23,23],
+  top15Urls:      ["https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000"],
+  top15WS:        ["WS-0001","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002","WS-0002"],
+  accessLabels:   ["Embedding for your customers","Power BI Web"],
+  accessData:     [1115,296],
+  browserLabels:  ["Unknown","Chrome","Edge","Firefox"],
+  browserData:    [1129,208,59,15],
+  perfData:       [{"name":"RPT-0001","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":171,"viewers":1,"firstH":9,"secH":162,"trend":"up","method":"Embedding for your customers"},{"name":"RPT-0002","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":113,"viewers":4,"firstH":78,"secH":35,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0003","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":101,"viewers":3,"firstH":10,"secH":91,"trend":"up","method":"Embedding for your customers"},{"name":"RPT-0004","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":90,"viewers":2,"firstH":87,"secH":3,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0005","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":66,"viewers":4,"firstH":13,"secH":53,"trend":"up","method":"Embedding for your customers"},{"name":"RPT-0006","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":63,"viewers":2,"firstH":29,"secH":34,"trend":"up","method":"Embedding for your customers"},{"name":"RPT-0007","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":61,"viewers":2,"firstH":33,"secH":28,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0008","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":58,"viewers":1,"firstH":58,"secH":0,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0009","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":58,"viewers":1,"firstH":30,"secH":28,"trend":"flat","method":"Embedding for your customers"},{"name":"RPT-0010","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":50,"viewers":3,"firstH":27,"secH":23,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0011","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":49,"viewers":2,"firstH":25,"secH":24,"trend":"flat","method":"Power BI Web"},{"name":"RPT-0012","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":35,"viewers":2,"firstH":23,"secH":12,"trend":"down","method":"Embedding for your customers"},{"name":"RPT-0013","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":34,"viewers":4,"firstH":3,"secH":31,"trend":"up","method":"Power BI Web"},{"name":"RPT-0014","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":23,"viewers":2,"firstH":7,"secH":16,"trend":"up","method":"Embedding for your customers"},{"name":"RPT-0015","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":23,"viewers":3,"firstH":5,"secH":18,"trend":"up","method":"Embedding for your customers"}],
+  laHasData:      0,
+  laTimingData:   [],
+  laDailyPerf:    [],
+  wsSummary:      [{"ws":"WS-0002","cap":"PBI Premium Capacity","rCount":150,"views":1155,"viewers":102,"active":57,"topRpt":"RPT-0002","topViews":113},{"ws":"WS-0001","cap":"PBI Premium Capacity","rCount":24,"views":256,"viewers":19,"active":16,"topRpt":"RPT-0001","topViews":171},{"ws":"WS-0003","cap":"PBI Premium Capacity","rCount":2,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0097","topViews":0},{"ws":"WS-0004","cap":"PBI Premium Capacity","rCount":1,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0111","topViews":0},{"ws":"WS-0005","cap":"PBI Premium Capacity","rCount":31,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0094","topViews":0},{"ws":"WS-0006","cap":"PBI Premium Capacity","rCount":7,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0082","topViews":0},{"ws":"WS-0007","cap":"PBI Premium Capacity","rCount":1,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0181","topViews":0},{"ws":"WS-0008","cap":"Fabric Capacity","rCount":1,"views":0,"viewers":0,"active":0,"topRpt":"RPT-0043","topViews":0}],
+  reports:        [{"name":"RPT-0001","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":171,"viewers":1,"shares":0,"rank":1,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0002","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":113,"viewers":4,"shares":0,"rank":2,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0003","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":101,"viewers":3,"shares":0,"rank":3,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0004","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":90,"viewers":2,"shares":0,"rank":4,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0005","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":66,"viewers":4,"shares":0,"rank":5,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0006","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":63,"viewers":2,"shares":0,"rank":6,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0007","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":61,"viewers":2,"shares":0,"rank":7,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0009","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":58,"viewers":1,"shares":0,"rank":8,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0008","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":58,"viewers":1,"shares":0,"rank":9,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0010","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":50,"viewers":3,"shares":0,"rank":10,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0011","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":49,"viewers":2,"shares":0,"rank":11,"topPage":"","method":"Power BI Web"},{"name":"RPT-0012","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":35,"viewers":2,"shares":0,"rank":12,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0013","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":34,"viewers":4,"shares":0,"rank":13,"topPage":"","method":"Power BI Web"},{"name":"RPT-0014","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":23,"viewers":2,"shares":0,"rank":14,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0016","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":23,"viewers":2,"shares":0,"rank":15,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0015","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":23,"viewers":3,"shares":0,"rank":16,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0017","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":22,"viewers":2,"shares":0,"rank":17,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0018","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":21,"viewers":2,"shares":0,"rank":18,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0019","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":20,"viewers":2,"shares":0,"rank":19,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0020","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":19,"viewers":2,"shares":0,"rank":21,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0021","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":19,"viewers":2,"shares":0,"rank":20,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0022","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":18,"viewers":1,"shares":0,"rank":22,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0023","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":16,"viewers":2,"shares":0,"rank":24,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0024","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":16,"viewers":2,"shares":0,"rank":23,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0025","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":15,"viewers":1,"shares":0,"rank":25,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0026","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":15,"viewers":3,"shares":0,"rank":26,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0027","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":14,"viewers":3,"shares":0,"rank":27,"topPage":"","method":"Power BI Web"},{"name":"RPT-0028","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":12,"viewers":3,"shares":0,"rank":29,"topPage":"","method":"Power BI Web"},{"name":"RPT-0029","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":12,"viewers":2,"shares":0,"rank":28,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0030","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":11,"viewers":2,"shares":0,"rank":31,"topPage":"","method":"Power BI Web"},{"name":"RPT-0031","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":11,"viewers":2,"shares":0,"rank":30,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0032","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":10,"viewers":2,"shares":0,"rank":32,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0033","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":9,"viewers":1,"shares":0,"rank":34,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0034","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":9,"viewers":2,"shares":0,"rank":33,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0035","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":9,"viewers":1,"shares":0,"rank":35,"topPage":"","method":"Power BI Web"},{"name":"RPT-0036","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":8,"viewers":2,"shares":0,"rank":36,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0037","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":7,"viewers":2,"shares":0,"rank":37,"topPage":"","method":"Power BI Web"},{"name":"RPT-0038","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":6,"viewers":1,"shares":0,"rank":39,"topPage":"","method":"Power BI Web"},{"name":"RPT-0039","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":6,"viewers":2,"shares":0,"rank":40,"topPage":"","method":"Power BI Web"},{"name":"RPT-0040","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":6,"viewers":1,"shares":0,"rank":41,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0041","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":6,"viewers":1,"shares":0,"rank":42,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0042","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":6,"viewers":1,"shares":0,"rank":38,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0043","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":5,"viewers":1,"shares":0,"rank":43,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0044","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":5,"viewers":1,"shares":0,"rank":44,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0045","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":5,"viewers":1,"shares":0,"rank":45,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0046","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":4,"viewers":1,"shares":0,"rank":46,"topPage":"","method":"Power BI Web"},{"name":"RPT-0047","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":1,"shares":0,"rank":54,"topPage":"","method":"Power BI Web"},{"name":"RPT-0048","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":1,"shares":0,"rank":48,"topPage":"","method":"Power BI Web"},{"name":"RPT-0049","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":1,"shares":0,"rank":53,"topPage":"","method":"Power BI Web"},{"name":"RPT-0050","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":2,"shares":0,"rank":55,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0051","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":1,"shares":0,"rank":49,"topPage":"","method":"Power BI Web"},{"name":"RPT-0052","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":2,"shares":0,"rank":51,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0053","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":2,"shares":0,"rank":50,"topPage":"","method":"Power BI Web"},{"name":"RPT-0054","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":1,"shares":0,"rank":52,"topPage":"","method":"Power BI Web"},{"name":"RPT-0055","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":3,"viewers":2,"shares":0,"rank":47,"topPage":"","method":"Power BI Web"},{"name":"RPT-0056","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":1,"shares":0,"rank":60,"topPage":"","method":"Power BI Web"},{"name":"RPT-0057","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":1,"shares":0,"rank":56,"topPage":"","method":"Power BI Web"},{"name":"RPT-0058","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":1,"shares":0,"rank":57,"topPage":"","method":"Power BI Web"},{"name":"RPT-0059","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":1,"shares":0,"rank":58,"topPage":"","method":"Power BI Web"},{"name":"RPT-0060","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":1,"shares":0,"rank":59,"topPage":"","method":"Power BI Web"},{"name":"RPT-0061","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":2,"viewers":2,"shares":0,"rank":61,"topPage":"","method":"Power BI Web"},{"name":"RPT-0062","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":64,"topPage":"","method":"Power BI Web"},{"name":"RPT-0063","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":67,"topPage":"","method":"Power BI Web"},{"name":"RPT-0064","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":71,"topPage":"","method":"Power BI Web"},{"name":"RPT-0065","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":70,"topPage":"","method":"Embedding for your customers"},{"name":"RPT-0066","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":65,"topPage":"","method":"Power BI Web"},{"name":"RPT-0067","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":63,"topPage":"","method":"Power BI Web"},{"name":"RPT-0068","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":66,"topPage":"","method":"Power BI Web"},{"name":"RPT-0069","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":73,"topPage":"","method":"Power BI Web"},{"name":"RPT-0070","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":62,"topPage":"","method":"Power BI Web"},{"name":"RPT-0071","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":69,"topPage":"","method":"Power BI Web"},{"name":"RPT-0072","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":68,"topPage":"","method":"Power BI Web"},{"name":"RPT-0073","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":1,"viewers":1,"shares":0,"rank":72,"topPage":"","method":"Power BI Web"},{"name":"RPT-0029","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0074","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/0b732454-e2ec-4c00-b261-1a24112f2886","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0075","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0076","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0077","ws":"WS-0006","url":"https://app.powerbi.com/groups/me/apps/4596660f-2322-404e-a2cd-351b31b5ec7d/reports/09f6db61-1c79-4d03-9002-e0fc704f1aa3","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0078","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0079","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0080","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/d501005a-be5d-4215-85e7-5988b4a26948","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0081","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/beb19c21-3364-4a1c-8285-724bde51f5ed","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0082","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0083","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0084","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0085","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0086","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0087","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/c35383a6-aad8-4a02-9d89-198e347fac0c","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0088","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0089","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0090","ws":"WS-0006","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0091","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/480c3c11-3c36-4939-bb5b-451fdc28d7b5","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0092","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0093","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/13fd1931-e976-4151-be4c-e70408f422e9","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0094","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0095","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0096","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0097","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0098","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0099","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0100","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0101","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0102","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0103","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/91fe316a-e324-407b-b6a4-1c8e3d988fef","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0104","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0105","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0106","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0107","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0108","ws":"WS-0005","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0109","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/f6e05de9-b832-49ea-9312-a649288889b5","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0110","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/3e2bb356-6d00-4f67-b612-3cf56613c09e","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0111","ws":"WS-0004","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0097","ws":"WS-0003","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0112","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0113","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/329eb820-b53c-4503-bd86-4811ec9db005","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0114","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/dc4688c2-f742-4558-85dc-3c0a86f77056","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0115","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/838a348e-3114-42ec-9d7f-eef2bcc5941a","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0116","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/8749b263-8ad9-4ea8-9358-fa8b2adb73c6","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0117","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0118","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0119","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0120","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0121","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/1071cdb3-9566-4104-81ad-57a02e618381","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0122","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0123","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0124","ws":"WS-0001","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0125","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0126","ws":"WS-0005","url":"https://app.powerbi.com/groups/me/apps/3777e954-ea0c-4f99-8223-df4caa0bf3e6/reports/34275da7-f845-4384-8b90-36c362eaa1b0","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0103","ws":"WS-0003","url":"https://app.powerbi.com/groups/me/apps/4294ac64-572d-406b-bd18-4ecb5feb4a9d/reports/f1ee1f94-5a2f-4f52-b6c6-a621073c18b1","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0127","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0128","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0129","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0130","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0131","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0132","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0133","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0112","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0134","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0135","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0136","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0137","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0138","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0139","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0140","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0141","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0142","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0143","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0144","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0145","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0146","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0147","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0148","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0149","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0150","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0151","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0152","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0153","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0154","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0155","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0156","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0157","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0158","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0159","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0160","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0161","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0162","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0163","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0164","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0165","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0166","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0167","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0168","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0169","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0170","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0171","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0172","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0173","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0174","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0175","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0176","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0177","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0178","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0179","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0180","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0181","ws":"WS-0007","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0182","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0183","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0184","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0185","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0186","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0187","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0188","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0189","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0190","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0191","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0192","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0193","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0194","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0195","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0196","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0197","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0198","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0199","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0200","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0201","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0202","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0203","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0204","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0205","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0206","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0207","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0208","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0209","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0210","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0211","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0212","ws":"WS-0002","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""},{"name":"RPT-0043","ws":"WS-0008","url":"https://app.powerbi.com/groups/00000000-0000-0000-0000-000000000000/reports/00000000-0000-0000-0000-000000000000","views":0,"viewers":0,"shares":0,"rank":9999,"topPage":"","method":""}]
+};
+
+const FINDINGS = {
+  dormancyPct: 66,
+  top5Pct:     38,
+  mobilePct:   0,
+  dormText:    "66% of reports (144 out of 217) had zero views in the past 28 days. Consider archiving or retiring unused content to reduce clutter and maintenance overhead.",
+  concText:    "The top 5 reports account for 38% of all views. While this shows a clear set of high-value reports, consider promoting other reports to a broader audience.",
+  webText:     "Power BI Web is the primary access channel. Ensure reports are optimized for browser rendering and that page load times are acceptable.",
+  mobileText:  "Mobile access represents 0% of views. Ensure key reports are optimized with a mobile layout using Power BI Desktop's Phone View.",
+  noDataText:  "No view events were captured in the selected period. Verify that the Power BI Administrator role is assigned and that the Activity Events API is enabled in tenant settings."
+};
+
+const LABELS = {
+  kTotalViews:  "Total Views",  kTotalViewsSub: "in selected period",
+  kViewers:     "Unique Viewers",     kViewersSub:    "distinct users",
+  kShares:      "Total Shares",      kSharesSub:     "report shares",
+  kActive:      "Active Reports",      kActiveSub:     "at least 1 view",
+  kDormant:     "Dormant Reports",     kDormantSub:    "zero views",
+  kActivePct:   "Active Rate",   kActivePctSub:  "% of total reports",
+  chartTrend:   "Views per Day",
+  fDormTitle:   "High Report Dormancy",   fDormLow:       "Low Report Dormancy — Good Adoption",
+  fTopConc:     "View Concentration in Top Reports",     fWebFirst:      "Primary Access via Power BI Web",
+  fMobile:      "Mobile Access Detected",      fNoViews:       "No Usage Data Available",
+  btnAll:       "All",       btnActive:      "&#x25CF; Active",  btnDormant: "&#x25CB; Dormant"
+};
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'red' ? 'blue' : 'red';
+  document.documentElement.setAttribute('data-theme', next);
+  const btn = document.querySelector('.theme-toggle');
+  btn.textContent = next === 'red' ? '🔴 Red'.replace('🔴','🔵').replace('Red','Blue').replace('Rojo','Azul').replace('Vermelho','Azul') : '🔴 Red';
+}
+
+// ── COLOURS ───────────────────────────────────────────────────────────────────
+function accent()   { return getComputedStyle(document.documentElement).getPropertyValue('--cp-link').trim(); }
+function success()  { return getComputedStyle(document.documentElement).getPropertyValue('--cp-success').trim(); }
+function warning()  { return getComputedStyle(document.documentElement).getPropertyValue('--cp-warning').trim(); }
+function accentSoft(){ return getComputedStyle(document.documentElement).getPropertyValue('--cp-accent-soft').trim(); }
+
+// ── KPI GRID ──────────────────────────────────────────────────────────────────
+function buildKPIs() {
+  const dormClass = D.activePct < 50 ? 'danger' : D.activePct < 75 ? 'warn' : 'good';
+  const kpis = [
+    { label: LABELS.kTotalViews,  value: D.totalViews.toLocaleString(),   sub: LABELS.kTotalViewsSub,  cls: '' },
+    { label: LABELS.kViewers,     value: D.totalViewers.toLocaleString(),  sub: LABELS.kViewersSub,     cls: '' },
+    { label: LABELS.kShares,      value: D.totalShares.toLocaleString(),   sub: LABELS.kSharesSub,      cls: '' },
+    { label: LABELS.kActive,      value: D.activeReports.toLocaleString(), sub: LABELS.kActiveSub,      cls: 'good' },
+    { label: LABELS.kDormant,     value: D.dormantReports.toLocaleString(),sub: LABELS.kDormantSub,     cls: D.dormantReports > 0 ? 'warn' : '' },
+    { label: LABELS.kActivePct,   value: D.activePct + '%',                sub: LABELS.kActivePctSub,   cls: dormClass }
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k =>
+    '<div class="kpi-card '+k.cls+'"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="sub">'+k.sub+'</div></div>'
+  ).join('');
+}
+
+// ── TREND CHART ───────────────────────────────────────────────────────────────
+let trendChartInst = null;
+function buildTrend() {
+  document.getElementById('trendTitle').textContent = LABELS.chartTrend;
+  if (!D.trendLabels.length) return;
+  const dsFrom = document.getElementById('dsFrom');
+  const dsTo   = document.getElementById('dsTo');
+  if (dsFrom && D.trendLabels.length) {
+    dsFrom.min   = D.trendLabels[0];
+    dsFrom.max   = D.trendLabels[D.trendLabels.length - 1];
+    dsFrom.value = D.trendLabels[0];
+    dsTo.min     = D.trendLabels[0];
+    dsTo.max     = D.trendLabels[D.trendLabels.length - 1];
+    dsTo.value   = D.trendLabels[D.trendLabels.length - 1];
+    updateDsInfo();
+  }
+  trendChartInst = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: D.trendLabels,
+      datasets: [{ label: LABELS.chartTrend, data: D.trendData, borderColor: accent(),
+        backgroundColor: 'rgba(0,120,212,0.07)', fill: true, tension: 0.3,
+        pointRadius: D.trendLabels.length > 20 ? 2 : 4, pointHoverRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 11 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function updateDsInfo() {
+  const from = document.getElementById('dsFrom').value;
+  const to   = document.getElementById('dsTo').value;
+  const el   = document.getElementById('dsRangeInfo');
+  if (el && from && to) {
+    const days = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
+    el.textContent = days + ' days selected';
+  }
+}
+
+function applyDateSlicer() {
+  updateDsInfo();
+  const from = document.getElementById('dsFrom').value;
+  const to   = document.getElementById('dsTo').value;
+  if (!from || !to || !trendChartInst) return;
+  const out = D.trendLabels.reduce((acc, d, i) => {
+    if (d >= from && d <= to) { acc.l.push(d); acc.v.push(D.trendData[i]); }
+    return acc;
+  }, { l: [], v: [] });
+  trendChartInst.data.labels = out.l;
+  trendChartInst.data.datasets[0].data = out.v;
+  trendChartInst.update();
+}
+
+function resetDateSlicer() {
+  if (!D.trendLabels.length) return;
+  document.getElementById('dsFrom').value = D.trendLabels[0];
+  document.getElementById('dsTo').value   = D.trendLabels[D.trendLabels.length - 1];
+  applyDateSlicer();
+}
+
+// ── TOP 15 CHART ──────────────────────────────────────────────────────────────
+function buildTop15() {
+  if (!D.top15Labels.length) return;
+  const maxV = Math.max(...D.top15Data);
+  const colors = D.top15Data.map(v => v === maxV ? accent() : accentSoft() || 'rgba(0,120,212,0.35)');
+  new Chart(document.getElementById('top15Chart'), {
+    type: 'bar',
+    data: {
+      labels: D.top15Labels,
+      datasets: [{ label: 'Views', data: D.top15Data, backgroundColor: colors,
+        borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx) => D.top15WS[ctx.dataIndex] ? '  ' + D.top15WS[ctx.dataIndex] : ''
+          }
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { font: { size: 11 } } },
+        y: { ticks: {
+          font: { size: 11 },
+          callback: (v, i) => { const l = D.top15Labels[i] || ''; return l.length > 40 ? l.slice(0,38)+'…' : l; }
+        }}
+      },
+      onClick: (evt, elements) => {
+        if (elements.length && D.top15Urls[elements[0].index]) {
+          window.open(D.top15Urls[elements[0].index], '_blank');
+        }
+      }
+    }
+  });
+}
+
+// ── ACCESS CHART ──────────────────────────────────────────────────────────────
+function buildAccess() {
+  if (!D.accessLabels.length || D.totalViews === 0) return;
+  const palette = ['#0078d4','#16a34a','#f59e0b','#dc2626','#8b5cf6','#0ea5e9','#ec4899'];
+  new Chart(document.getElementById('accessChart'), {
+    type: 'doughnut',
+    data: {
+      labels: D.accessLabels,
+      datasets: [{ data: D.accessData, backgroundColor: palette, hoverOffset: 6, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } } }
+    }
+  });
+}
+
+// ── WORKSPACE TABLE ────────────────────────────────────────────────────────────
+function buildWSTable() {
+  const maxViews = Math.max(...D.wsSummary.map(w => w.views), 1);
+  const rows = D.wsSummary.map(w => {
+    const isFab = w.cap.toLowerCase().includes('fabric');
+    const badgeCls = isFab ? 'badge-fabric' : 'badge-premium';
+    const barW = Math.round(w.views / maxViews * 100);
+    return '<tr>'+
+      '<td><strong>'+w.ws+'</strong></td>'+
+      '<td><span class="badge '+badgeCls+'">'+(isFab?'Fabric':'Premium')+'</span></td>'+
+      '<td>'+w.rCount+'</td>'+
+      '<td><span class="bar-mini" style="width:'+barW+'px;background:var(--cp-link)"></span>'+w.views.toLocaleString()+'</td>'+
+      '<td>'+w.viewers.toLocaleString()+'</td>'+
+      '<td>'+(w.rCount>0?Math.round(w.active/w.rCount*100)+'%':'-')+'</td>'+
+      '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+w.topRpt+'">'+w.topRpt+'</td>'+
+    '</tr>';
+  });
+  document.getElementById('wsTableBody').innerHTML = rows.join('');
+}
+
+// ── REPORT TABLE ──────────────────────────────────────────────────────────────
+let allRows = [];
+function buildReportTable() {
+  const maxViews = Math.max(...D.reports.map(r => r.views), 1);
+  allRows = D.reports.map((r, i) => {
+    const isActive = r.views > 0;
+    const badge = isActive
+      ? '<span class="badge badge-active">&#x25CF;</span>'
+      : '<span class="badge badge-dormant">&#x25CB;</span>';
+    const nameCell = r.url
+      ? '<a class="report-link" href="'+r.url+'" target="_blank">'+r.name+'</a>'
+      : r.name;
+    const barW = Math.round(r.views / maxViews * 80);
+    const rankStr = r.rank < 9999 ? '#'+r.rank : '-';
+    return '<tr data-search="'+(r.name+' '+r.ws).toLowerCase()+'" data-status="'+(isActive?'active':'dormant')+'">'+ 
+      '<td>'+badge+' '+rankStr+'</td>'+
+      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+r.name+'">'+nameCell+'</td>'+
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.ws+'</td>'+
+      '<td><span class="bar-mini" style="width:'+barW+'px;background:var(--cp-link)"></span>'+r.views.toLocaleString()+'</td>'+
+      '<td>'+r.viewers.toLocaleString()+'</td>'+
+      '<td>'+r.shares.toLocaleString()+'</td>'+
+      '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+r.topPage+'">'+(r.topPage||'-')+'</td>'+
+      '<td>'+(r.method||'-')+'</td>'+
+    '</tr>';
+  });
+  document.getElementById('reportTableBody').innerHTML = allRows.join('');
+}
+
+let statusFilter = 'all';
+function setStatusFilter(v) {
+  statusFilter = v;
+  ['all','active','dormant'].forEach(s => {
+    const btn = document.getElementById('sb'+s.charAt(0).toUpperCase()+s.slice(1));
+    if (btn) btn.className = 'status-btn' + (s === v ? ' sb-active' : '');
+  });
+  filterReports();
+}
+function filterReports() {
+  const q = document.getElementById('reportSearch').value.toLowerCase();
+  const rows = document.querySelectorAll('#reportTableBody tr');
+  rows.forEach(row => {
+    const matchText   = row.dataset.search.includes(q);
+    const matchStatus = statusFilter === 'all' || row.dataset.status === statusFilter;
+    row.style.display = (matchText && matchStatus) ? '' : 'none';
+  });
+}
+
+// ── FINDINGS ──────────────────────────────────────────────────────────────────
+function buildFindings() {
+  const findings = [];
+  if (D.totalViews === 0) {
+    findings.push({ cls:'risk', icon:'⚠️', title: LABELS.fNoViews, text: FINDINGS.noDataText });
+  } else {
+    const dormCls = FINDINGS.dormancyPct >= 50 ? 'risk' : 'rec';
+    const dormTitle = FINDINGS.dormancyPct >= 50 ? LABELS.fDormTitle : LABELS.fDormLow;
+    findings.push({ cls: dormCls, icon: FINDINGS.dormancyPct >= 50 ? '📦' : '✅', title: dormTitle, text: FINDINGS.dormText });
+    if (FINDINGS.top5Pct > 0)
+      findings.push({ cls:'info', icon:'🎯', title: LABELS.fTopConc, text: FINDINGS.concText });
+    findings.push({ cls:'info', icon:'🌐', title: LABELS.fWebFirst, text: FINDINGS.webText });
+    if (FINDINGS.mobilePct > 0)
+      findings.push({ cls:'rec', icon:'📱', title: LABELS.fMobile, text: FINDINGS.mobileText });
+  }
+  document.getElementById('findingsGrid').innerHTML = findings.map(f =>
+    '<div class="finding-card '+f.cls+'"><div class="f-icon">'+f.icon+'</div><h4>'+f.title+'</h4><p>'+f.text+'</p></div>'
+  ).join('');
+}
+
+// ── TABLE SORT ────────────────────────────────────────────────────────────────
+const sortState = {};
+function sortTable(tableId, colIdx) {
+  const table = document.getElementById(tableId);
+  const tbody = table.querySelector('tbody');
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  const key   = tableId + '_' + colIdx;
+  const asc   = sortState[key] !== true;
+  sortState[key] = asc;
+  rows.sort((a, b) => {
+    const av = a.cells[colIdx]?.textContent.trim() || '';
+    const bv = b.cells[colIdx]?.textContent.trim() || '';
+    const an = parseFloat(av.replace(/[^0-9.-]/g, ''));
+    const bn = parseFloat(bv.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+    return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  table.querySelectorAll('thead th').forEach((th, i) => {
+    th.classList.remove('sorted-asc','sorted-desc');
+    if (i === colIdx) th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+  });
+}
+
+// ── WORKSPACE SUMMARY TABLE ───────────────────────────────────────────────────
+function buildSummaryTable() {
+  const sorted = [...D.wsSummary].sort((a,b) => b.views - a.views);
+  const maxV   = Math.max(...sorted.map(w => w.views), 1);
+  document.getElementById('summaryTableBody').innerHTML = sorted.map(w => {
+    const isFab    = w.cap.toLowerCase().includes('fabric');
+    const badgeCls = isFab ? 'badge-fabric' : 'badge-premium';
+    const capLabel = w.cap || (isFab ? 'Fabric Capacity' : 'Premium Capacity');
+    const activeStr = w.rCount > 0 ? Math.round(w.active / w.rCount * 100) + '%' : '—';
+    const barW = Math.round(w.views / maxV * 80);
+    return '<tr>'+
+      '<td><strong>'+w.ws+'</strong></td>'+
+      '<td><span class="badge '+badgeCls+'">['+capLabel+']</span></td>'+
+      '<td style="text-align:right">'+w.rCount+'</td>'+
+      '<td style="text-align:right"><span class="bar-mini" style="width:'+barW+'px;background:var(--cp-link)"></span>'+w.views.toLocaleString()+'</td>'+
+      '<td style="text-align:right">'+w.viewers.toLocaleString()+'</td>'+
+      '<td style="text-align:right">'+activeStr+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── DAILY PERFORMANCE CHART (Log Analytics) ───────────────────────────────────
+function buildDailyPerfChart() {
+  if (!D.laHasData || !D.laDailyPerf || !D.laDailyPerf.length) return;
+  document.getElementById('laSection').style.display = 'block';
+  const lbls = D.laDailyPerf.map(function(x) { return x.d; });
+  const p25  = D.laDailyPerf.map(function(x) { return x.p25; });
+  const p50  = D.laDailyPerf.map(function(x) { return x.p50; });
+  const p75  = D.laDailyPerf.map(function(x) { return x.p75; });
+  new Chart(document.getElementById('dailyPerfChart'), {
+    type: 'line',
+    data: {
+      labels: lbls,
+      datasets: [
+        { label: 'P75', data: p75, borderColor: 'rgba(245,158,11,0.7)', backgroundColor: 'rgba(245,158,11,0.07)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 1.5 },
+        { label: 'P50', data: p50, borderColor: accent(), backgroundColor: 'rgba(0,120,212,0.09)', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2 },
+        { label: 'P25', data: p25, borderColor: 'rgba(22,163,74,0.7)', backgroundColor: 'rgba(22,163,74,0.07)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 1.5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 11 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { font: { size: 11 }, callback: function(v) { return v + ' ms'; } } }
+      }
+    }
+  });
+}
+
+// ── QUERY TIMING TABLE (Log Analytics) ────────────────────────────────────────
+function buildTimingTable() {
+  if (!D.laHasData || !D.laTimingData || !D.laTimingData.length) return;
+  document.getElementById('laSection').style.display = 'block';
+  const maxP75 = Math.max.apply(null, D.laTimingData.map(function(x) { return x.p75; }).concat([1]));
+  document.getElementById('timingTableBody').innerHTML = D.laTimingData.map(function(r) {
+    const t = (r.ph1 > 0 && r.ph2 > 0)
+      ? (r.ph2 > r.ph1 * 1.1 ? 'down' : r.ph2 < r.ph1 * 0.9 ? 'up' : 'flat')
+      : 'flat';
+    const tIcon  = { up: '&#x2191;', down: '&#x2193;', flat: '&#x2192;' };
+    const tStyle = {
+      up:   'color:var(--cp-success);font-size:1.1rem;font-weight:700',
+      down: 'color:var(--cp-danger);font-size:1.1rem;font-weight:700',
+      flat: 'color:var(--cp-text-muted);font-size:1.1rem'
+    };
+    const barW = Math.round(r.p50 / maxP75 * 80);
+    return '<tr>'+
+      '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+r.rname+'">'+r.rname+'</td>'+
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.wsname+'</td>'+
+      '<td style="text-align:right">'+r.cnt.toLocaleString()+'</td>'+
+      '<td style="text-align:right;color:var(--cp-success)">'+r.p25.toLocaleString()+'</td>'+
+      '<td style="text-align:right"><span class="bar-mini" style="width:'+barW+'px;background:var(--cp-link)"></span>'+r.p50.toLocaleString()+'</td>'+
+      '<td style="text-align:right;color:var(--cp-warning)">'+r.p75.toLocaleString()+'</td>'+
+      '<td style="text-align:center;'+tStyle[t]+'">'+tIcon[t]+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── BROWSER CHART ─────────────────────────────────────────────────────────────
+function buildBrowser() {
+  if (!D.browserLabels || !D.browserLabels.length || D.totalViews === 0) {
+    const el = document.getElementById('browserChart');
+    if (el) el.closest('.chart-card').style.opacity = '0.4';
+    return;
+  }
+  const palette = ['#0078d4','#16a34a','#f59e0b','#dc2626','#8b5cf6','#0ea5e9','#ec4899','#94a3b8'];
+  new Chart(document.getElementById('browserChart'), {
+    type: 'doughnut',
+    data: {
+      labels: D.browserLabels,
+      datasets: [{ data: D.browserData, backgroundColor: palette, hoverOffset: 6, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } } }
+    }
+  });
+}
+
+// ── PERFORMANCE TREND TABLE ───────────────────────────────────────────────────
+function buildPerfTable() {
+  const tbody = document.getElementById('perfTableBody');
+  if (!D.perfData || !D.perfData.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--cp-text-muted);padding:20px">—</td></tr>';
+    return;
+  }
+  const trendIcon = { up: '↑', down: '↓', flat: '→' };
+  const trendStyle = {
+    up:   'color:var(--cp-success);font-size:1.1rem;font-weight:700',
+    down: 'color:var(--cp-danger);font-size:1.1rem;font-weight:700',
+    flat: 'color:var(--cp-text-muted);font-size:1.1rem'
+  };
+  tbody.innerHTML = D.perfData.map(r => {
+    const nameCell = r.url
+      ? '<a class="report-link" href="'+r.url+'" target="_blank">'+r.name+'</a>'
+      : r.name;
+    const t = r.trend || 'flat';
+    return '<tr>'+
+      '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+r.name+'">'+nameCell+'</td>'+
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.ws+'</td>'+
+      '<td style="text-align:right">'+r.views.toLocaleString()+'</td>'+
+      '<td style="text-align:right">'+r.viewers.toLocaleString()+'</td>'+
+      '<td style="text-align:right">'+r.firstH.toLocaleString()+'</td>'+
+      '<td style="text-align:right">'+r.secH.toLocaleString()+'</td>'+
+      '<td style="text-align:center;'+trendStyle[t]+'">'+trendIcon[t]+'</td>'+
+      '<td>'+(r.method||'-')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildSummaryTable();
+  buildKPIs();
+  buildTrend();
+  buildTop15();
+  buildAccess();
+  buildBrowser();
+  buildPerfTable();
+  if (D.laHasData) { buildDailyPerfChart(); buildTimingTable(); }
+  buildWSTable();
+  buildReportTable();
+  buildFindings();
+});
+</script>
+</body>
+</html>
