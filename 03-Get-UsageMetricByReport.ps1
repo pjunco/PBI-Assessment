@@ -24,7 +24,7 @@
     Defaults to .\Output\PowerBI_Reports_All_Workspaces.json.
 
 .PARAMETER DaysBack
-    Number of days of activity history to retrieve. Defaults to 90.
+    Number of days of activity history to retrieve. Maximum 28 (API hard limit). Defaults to 28.
 
 .PARAMETER TenantId
     Azure AD Tenant ID. Required for service principal authentication.
@@ -42,14 +42,14 @@
 .EXAMPLE
     # Service principal login
     $secret = ConvertTo-SecureString "your-secret" -AsPlainText -Force
-    .\03-Get-UsageMetricByReport.ps1 -DaysBack 30 -TenantId "xxx" -ClientId "yyy" -ClientSecret $secret
+    .\03-Get-UsageMetricByReport.ps1 -DaysBack 28 -TenantId "xxx" -ClientId "yyy" -ClientSecret $secret
 #>
 
 [CmdletBinding()]
 param (
     [string]$InputJson = ".\Output\PowerBI_Reports_All_Workspaces.json",
 
-    [int]$DaysBack = 90,
+    [int]$DaysBack = 28,
 
     [string]$TenantId,
     [string]$ClientId,
@@ -68,8 +68,8 @@ Write-Host "  1. Power BI Service API permission: Tenant.Read.All" -ForegroundCo
 Write-Host "  2. Power BI Admin role in the Power BI Admin portal." -ForegroundColor White
 Write-Host "  3. Admin portal > Tenant settings > Admin API settings" -ForegroundColor White
 Write-Host "       > Allow service principals to use read-only Power BI admin APIs" -ForegroundColor Cyan
-Write-Host "  NOTE: Activity Events API returns up to 90 days of history." -ForegroundColor Gray
-Write-Host "  NOTE: For 90 days this script makes ~90 API calls (1 per day)." -ForegroundColor Gray
+Write-Host "  NOTE: Activity Events API supports a maximum of 28 days of history." -ForegroundColor Gray
+Write-Host "  NOTE: For 28 days this script makes ~28 API calls (1 per day)." -ForegroundColor Gray
 Write-Host "---------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host ""
 
@@ -89,49 +89,66 @@ if ($ClientId -and $ClientSecret -and $TenantId) {
     Connect-PowerBIServiceAccount
 }
 
+# Capture the Bearer token for direct REST calls (preserves single-quoted datetime params)
+$script:pbiHeaders = Get-PowerBIAccessToken
+
 # ── Helper: fetch all activity events for a single UTC day ──────────────────────
 $script:activityApiError = $false
+$script:daySkipped       = $false
 
 function Get-ActivityEventsForDay {
     param([string]$DateStr)   # yyyy-MM-dd
 
+    # Single quotes around datetimes are REQUIRED by the API.
+    # Invoke-PowerBIRestMethod URL-encodes them, so we call the REST endpoint
+    # directly with Invoke-RestMethod to preserve the exact URL format.
     $startDt   = "${DateStr}T00:00:00.000Z"
     $endDt     = "${DateStr}T23:59:59.999Z"
-    $relUrl    = "admin/activityevents?startDateTime='$startDt'&endDateTime='$endDt'"
+    $uri       = "https://api.powerbi.com/v1.0/myorg/admin/activityevents?startDateTime='$startDt'&endDateTime='$endDt'"
     $allEvents = [System.Collections.Generic.List[object]]::new()
 
     try {
         do {
-            $raw      = Invoke-PowerBIRestMethod -Url $relUrl -Method Get -ErrorAction Stop
-            $response = $raw | ConvertFrom-Json
+            $response = Invoke-RestMethod -Uri $uri -Headers $script:pbiHeaders -Method Get -ErrorAction Stop
             if ($response.activityEventEntities) {
                 $allEvents.AddRange([object[]]$response.activityEventEntities)
             }
-            $relUrl = if ($response.continuationUri) {
-                $response.continuationUri -replace '^https://api\.powerbi\.com/v1\.0/myorg/', ''
-            } else { $null }
-        } while ($relUrl)
+            $uri = $response.continuationUri   # null/empty when there are no more pages
+        } while ($uri)
     }
     catch {
-        $script:activityApiError = $true
-        $errMsg = $_.Exception.Message
-        Write-Host "" # newline after -NoNewline
-        Write-Host ""
-        Write-Host "  ERROR: Activity Events API call failed." -ForegroundColor Red
-        Write-Host "  Raw error: $errMsg" -ForegroundColor DarkRed
-        Write-Host ""
-        Write-Host "  Likely causes and fixes:" -ForegroundColor Yellow
-        Write-Host "  1. Missing role: your account needs the 'Power BI Administrator'" -ForegroundColor White
-        Write-Host "     role in Entra ID (Fabric Admin alone is NOT sufficient)." -ForegroundColor White
-        Write-Host "     -> Go to admin.microsoft.com > Users > [your account]" -ForegroundColor Cyan
-        Write-Host "        > Manage roles > check 'Power BI administrator'" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "  2. Activity Events API is disabled in tenant settings:" -ForegroundColor White
-        Write-Host "     -> Go to app.powerbi.com > Admin portal > Tenant settings" -ForegroundColor Cyan
-        Write-Host "        > Audit and usage settings" -ForegroundColor Cyan
-        Write-Host "        > Enable 'Usage metrics for content creators'" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "  Stopping event collection. Metrics will show 0 views/viewers." -ForegroundColor Yellow
+        # Extract HTTP status code (works on PS 5.1 and PS 7+)
+        $statusCode = try { $_.Exception.Response.StatusCode.value__ } catch { 0 }
+        if ($statusCode -eq 400) {
+            # 400 on a single day = date is at/beyond the API's supported window.
+            # Skip this day and let the loop continue to valid dates.
+            $script:daySkipped = $true
+            Write-Host " (skipped: outside API window)" -ForegroundColor DarkYellow
+        } else {
+            $script:activityApiError = $true
+            $errMsg       = $_.Exception.Message
+            $responseBody = $_.ErrorDetails.Message
+            Write-Host "" # newline after -NoNewline
+            Write-Host ""
+            Write-Host "  ERROR: Activity Events API call failed$(if ($statusCode) { " (HTTP $statusCode)" })." -ForegroundColor Red
+            Write-Host "  Raw error  : $errMsg" -ForegroundColor DarkRed
+            if ($responseBody) {
+                Write-Host "  API response: $responseBody" -ForegroundColor DarkRed
+            }
+            Write-Host ""
+            Write-Host "  Likely causes and fixes:" -ForegroundColor Yellow
+            Write-Host "  1. Missing role: your account needs the 'Power BI Administrator'" -ForegroundColor White
+            Write-Host "     role in Entra ID (Fabric Admin alone is NOT sufficient)." -ForegroundColor White
+            Write-Host "     -> Go to admin.microsoft.com > Users > [your account]" -ForegroundColor Cyan
+            Write-Host "        > Manage roles > check 'Power BI administrator'" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "  2. Activity Events API is disabled in tenant settings:" -ForegroundColor White
+            Write-Host "     -> Go to app.powerbi.com > Admin portal > Tenant settings" -ForegroundColor Cyan
+            Write-Host "        > Audit and usage settings" -ForegroundColor Cyan
+            Write-Host "        > Enable 'Usage metrics for content creators'" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "  Stopping event collection. Metrics will show 0 views/viewers." -ForegroundColor Yellow
+        }
     }
 
     return $allEvents
@@ -157,6 +174,12 @@ try {
     if (-not (Test-Path $outputDir)) { New-Item -ItemType Directory -Path $outputDir -Force | Out-Null }
 
     # ── 4. Collect activity events for the last N days (single pass) ─────────────
+    # The Activity Events API only supports the last 28 days (hard API limit).
+    if ($DaysBack -gt 28) {
+        Write-Warning "DaysBack ($DaysBack) exceeds the 28-day limit of the Activity Events API. Capping at 28."
+        $DaysBack = 28
+    }
+
     $endDate   = (Get-Date).Date
     $startDate = $endDate.AddDays(-$DaysBack)
 
@@ -169,9 +192,10 @@ try {
         if ($script:activityApiError) { break }   # stop on first API failure
         $dayStr = $current.ToString('yyyy-MM-dd')
         Write-Host "  Fetching $dayStr..." -ForegroundColor Gray -NoNewline
-        $dayEvents = Get-ActivityEventsForDay -DateStr $dayStr
-        if ($dayEvents) { $allEvents.AddRange([object[]]$dayEvents) }
-        if (-not $script:activityApiError) {
+        $script:daySkipped = $false
+        $dayEvents = @(Get-ActivityEventsForDay -DateStr $dayStr)
+        if ($dayEvents.Count -gt 0) { $allEvents.AddRange([object[]]$dayEvents) }
+        if (-not $script:activityApiError -and -not $script:daySkipped) {
             Write-Host " $($dayEvents.Count) event(s)" -ForegroundColor Gray
         }
         $current = $current.AddDays(1)
@@ -247,6 +271,21 @@ try {
                 ForEach-Object { [ordered]@{ Method = $_.Name; Views = $_.Count } } |
                 Sort-Object { $_.Views } -Descending
 
+            $browserBreakdown = $rViews |
+                Group-Object {
+                    $ua = $_.UserAgent
+                    if     (-not $ua)                             { 'Unknown'           }
+                    elseif ($ua -match 'PowerBIDesktop')          { 'Power BI Desktop'  }
+                    elseif ($ua -match 'Edg/|EdgA/|Edge/')        { 'Edge'              }
+                    elseif ($ua -match 'Firefox/')                { 'Firefox'           }
+                    elseif ($ua -match 'OPR/|Opera/')             { 'Opera'             }
+                    elseif ($ua -match 'Chrome/')                 { 'Chrome'            }
+                    elseif ($ua -match 'Safari/')                 { 'Safari'            }
+                    else                                          { 'Other'             }
+                } |
+                ForEach-Object { [ordered]@{ Browser = $_.Name; Views = $_.Count } } |
+                Sort-Object { $_.Views } -Descending
+
             $orgRank = if ($rankMap.ContainsKey($rid)) { $rankMap[$rid] } else { $null }
 
             Write-Host "  $($rpt.ReportName): $totalViews views, $totalViewers viewers" -ForegroundColor Gray
@@ -267,6 +306,7 @@ try {
                 SharesPerDay          = @($sharesPerDay)
                 MostViewedPages       = @($pageViews)
                 AccessMethodBreakdown = @($accessBreakdown)
+                BrowserBreakdown      = @($browserBreakdown)
             }
         }
 

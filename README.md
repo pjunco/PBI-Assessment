@@ -16,7 +16,8 @@ Microsoft Fabric introduces F-SKU capacities that replace the traditional Power 
 | What is the dataset connectivity mode (Import vs DirectQuery / Live Connect)? | Script 02 |
 | Which reports are actively used, and by how many people? | Script 03 |
 | What activities (refresh, export, share, create, delete) are happening across the tenant? | Script 04 |
-| How do I present all findings to stakeholders in a single shareable document? | Script 10 |
+| How do I present usage & adoption data in an interactive shareable report? | Script 05 |
+| How do I present inventory findings to stakeholders in a single shareable document? | Script 99 |
 
 ---
 
@@ -28,7 +29,8 @@ Assessment/
 ├── 02-Get-PowerBIReportsByWorkspace.ps1  # Step 2  — Report & dataset metadata
 ├── 03-Get-UsageMetricByReport.ps1        # Step 3  — Usage & adoption metrics
 ├── 04-Get-FabricAuditLogs.ps1            # Step 4  — Fabric / Power BI audit logs
-├── 99-Generate-ExecutiveReport.ps1       # Optional Step to generate an Interactive HTML executive report
+├── 05-Generate-UsageReport.ps1           # Step 5  — Interactive HTML usage metrics report
+├── 99-Generate-ExecutiveReport.ps1       # Optional — Interactive HTML executive report (inventory)
 ├── Run-Scripts.bat                       # Menu-driven launcher (Windows)
 ├── Input/                                # (reserved for future input files)
 └── Output/                               # All JSON outputs land here
@@ -53,6 +55,11 @@ Assessment/
         │  Output\PowerBI_UsageMetrics_<Workspace>.json   (one per workspace)
         │  Output\PowerBI_UsageMetrics_All.json           (combined)
         ▼
+05-Generate-UsageReport.ps1   (runs after script 03 — reads PowerBI_UsageMetrics_All.json)
+        │
+        │  <OutputFolder>\PowerBI_UsageReport_<CustomerName>.html
+        └─ Self-contained interactive HTML file (no server required)
+
 04-Get-FabricAuditLogs.ps1    (independent — can run at any time)
         │
         │  Output\Fabric_AuditLog_Raw_<date>.json
@@ -64,7 +71,7 @@ Assessment/
         └─ Self-contained interactive HTML file (no server required)
 ```
 
-Scripts 01 → 02 → 03 must run **in order**. Script 04 is independent. Script 10 requires only the output of scripts 01 and 02.
+Scripts 01 → 02 → 03 → 05 must run **in order**. Script 04 is independent. Script 99 requires only the output of scripts 01 and 02.
 
 ---
 
@@ -105,13 +112,19 @@ cd Assessment
 .\03-Get-UsageMetricByReport.ps1
 .\04-Get-FabricAuditLogs.ps1
 
-# Generate the executive report (Portuguese, default)
+# Usage metrics report (English, default)
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "My Customer"
+
+# Usage metrics report — Spanish / Portuguese variants
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 2
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 3
+
+# Executive report (inventory) — Portuguese default
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer"
 
-# English / Spanish / Portugese variants
+# Executive report — English / Spanish variants
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 1
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 2
-.\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 3
 ```
 
 ### Option B — Service principal
@@ -216,7 +229,8 @@ Reads the combined report list from script 02 and collects up to **90 days** of 
 | `ViewsPerUser` | Per-user view count breakdown |
 | `SharesPerDay` | Daily share count time-series |
 | `MostViewedPages` | Page-level view breakdown |
-| `AccessMethodBreakdown` | Web vs Mobile vs other consumption methods |
+| `AccessMethodBreakdown` | Web vs Mobile vs Embedded and other consumption methods |
+| `BrowserBreakdown` | Per-browser view breakdown (Chrome, Edge, Firefox, Safari, etc.) |
 
 **Outputs:**
 - `Output\PowerBI_UsageMetrics_<WorkspaceName>.json` — per workspace
@@ -229,6 +243,55 @@ Reads the combined report list from script 02 and collects up to **90 days** of 
 | `-InputJson` | `.\Output\PowerBI_Reports_All_Workspaces.json` | Report list from script 02 |
 | `-DaysBack` | `90` | Days of history (max 90) |
 | `-TenantId` / `-ClientId` / `-ClientSecret` | — | Authentication |
+
+---
+
+### `05-Generate-UsageReport.ps1` — Interactive HTML usage metrics report
+
+Reads `PowerBI_UsageMetrics_All.json` (output of script 03) and generates a **self-contained, single-file HTML report** focused on report usage and adoption. Opens directly in any browser — no server or dependencies required.
+
+**Report sections:**
+
+| Section | Contents |
+|---|---|
+| Workspace Summary | Sortable table with views, viewers, active report %, and top report per workspace |
+| Usage Overview (KPIs) | Total views, unique viewers, total shares, active reports, dormant reports, active rate % |
+| Daily Views Trend | Line chart with an interactive date slicer (from / to) to zoom into any period |
+| Top 15 Reports | Horizontal bar chart of the highest-viewed reports; click a bar to open the report |
+| Report Performance | Access method donut, browser donut, engagement trend table (first-half vs second-half views) |
+| Azure Log Analytics _(optional)_ | P25/P50/P75 server-side query timings per report and daily, if Log Analytics workspace is provided |
+| All Reports — Ranked by Views | Full sortable table with **Active / Dormant / All filter**, text search, bar sparklines, and direct links |
+| Report Metrics Reference | Collapsible reference card explaining every metric shown in the report |
+| Key Findings & Recommendations | Auto-generated insight cards (dormancy rate, view concentration, access channel, mobile usage) |
+
+**Active / Dormant filter:** Three pill buttons above the report table let the viewer instantly filter to active reports (≥1 view), dormant reports (0 views), or all reports. Works in combination with the text search.
+
+**Theme toggle:** 🔵 Blue / 🔴 Red theme switcher in the top-right corner.
+
+**Parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `-OutputFolder` | `.\.Output` | Folder containing `PowerBI_UsageMetrics_All.json` |
+| `-CustomerName` | Folder name | Customer display name used in the report title |
+| `-Language` | `1` | `1` = English (en-US) · `2` = Spanish (es-MX) · `3` = Portuguese (pt-BR) |
+
+**Output:** `<OutputFolder>\PowerBI_UsageReport_<CustomerName>.html`
+
+**Examples:**
+
+```powershell
+# English (default)
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "Contoso"
+
+# Spanish
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "Contoso Mexico" -Language 2
+
+# Portuguese
+.\05-Generate-UsageReport.ps1 -OutputFolder .\Output -CustomerName "Contoso Brasil" -Language 3
+```
+
+> **Note:** When prompted for Azure Log Analytics, enter **N** to skip if you do not have a Log Analytics workspace connected to your Fabric/Power BI capacity. The report is fully functional without it.
 
 ---
 
@@ -259,7 +322,7 @@ Exports audit records from the **Power BI Activity Events API** for the entire o
 
 ---
 
-### `10-Generate-ExecutiveReport.ps1` — Interactive HTML executive report
+### `99-Generate-ExecutiveReport.ps1` — Interactive HTML executive report
 
 Reads the JSON output from scripts 01 and 02 and generates a **self-contained, single-file HTML report** that opens directly in any browser — no server, no dependencies beyond an internet connection for Chart.js.
 
@@ -320,7 +383,8 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 | `PowerBI_UsageMetrics_All.json` | Script 03 | Combined usage metrics across all workspaces |
 | `Fabric_AuditLog_Raw_<date>.json` | Script 04 | Raw audit events |
 | `Fabric_AuditLog_Summary_<date>.json` | Script 04 | Aggregated activity summary |
-| `Executive_Report_<CustomerName>.html` | Script 10 | Self-contained interactive HTML executive report |
+| `PowerBI_UsageReport_<CustomerName>.html` | Script 05 | Self-contained interactive HTML usage metrics report |
+| `Executive_Report_<CustomerName>.html` | Script 99 | Self-contained interactive HTML executive report (inventory) |
 
 ---
 
