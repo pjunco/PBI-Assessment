@@ -30,8 +30,8 @@
 
 [CmdletBinding()]
 param (
-    [string]$OutputFolder  = ".\Output-BRA",
-    [string]$CustomerName  = "Contoso Brazil",
+    [string]$OutputFolder  = ".\Output",
+    [string]$CustomerName  = "My_Org",
     [string]$ReportPath    = "",
     [ValidateSet(1,2,3)]
     [int]$Language         = 3

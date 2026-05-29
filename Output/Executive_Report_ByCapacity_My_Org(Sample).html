@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contoso (Sample) - Executive Report by Capacity</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --surface: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #dbe4ee;
+      --brand: #005ea8;
+      --chip: #eef6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #dcecff 0%, transparent 35%),
+        radial-gradient(circle at top right, #e6fff7 0%, transparent 30%),
+        var(--bg);
+    }
+    .container {
+      max-width: 1280px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+    }
+    .header {
+      background: linear-gradient(120deg, var(--brand), #0b7cc4);
+      color: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 10px 24px rgba(0, 42, 90, 0.22);
+    }
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 1.55rem;
+    }
+    .meta {
+      margin: 0;
+      font-size: 0.95rem;
+      opacity: 0.95;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .kpi .label {
+      color: var(--muted);
+      font-size: 0.83rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .kpi .value {
+      margin-top: 6px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--brand);
+    }
+    .card {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card h2 {
+      margin: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.05rem;
+      background: #f9fbfe;
+    }
+    .table-wrap {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+    thead th {
+      text-align: left;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #4b5563;
+      background: #f7fbff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+    }
+    tbody td {
+      padding: 12px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+    }
+    tbody tr:hover {
+      background: #fbfdff;
+    }
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+    .top5-cell {
+      min-width: 360px;
+    }
+    .top-reports {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .top-reports li {
+      margin: 0 0 6px;
+      line-height: 1.3;
+    }
+    .report-name {
+      font-weight: 600;
+    }
+    .views {
+      margin-left: 6px;
+      padding: 2px 8px;
+      background: var(--chip);
+      border: 1px solid #d8ecff;
+      border-radius: 999px;
+      color: #075985;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .section-text {
+      margin: 14px 16px;
+      color: #334155;
+      line-height: 1.5;
+      font-size: 0.94rem;
+    }
+    .note-box {
+      margin: 12px 16px 16px;
+      padding: 12px 14px;
+      border: 1px solid #cfe6ff;
+      border-radius: 10px;
+      background: #f3f9ff;
+      color: #0b3f6f;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    @media (max-width: 760px) {
+      .container { margin: 14px auto; }
+      .header { padding: 16px; }
+      .header h1 { font-size: 1.2rem; }
+      .kpi .value { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="header">
+      <h1>Power BI Executive Summary by Capacity</h1>
+      <p class="meta"><strong>Customer:</strong> Contoso (Sample)</p>
+      <p class="meta"><strong>Generated on:</strong> 2026-05-29 10:00:00</p>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi">
+        <div class="label">Capacities</div>
+        <div class="value">4</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Workspaces</div>
+        <div class="value">22</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Reports</div>
+        <div class="value">178</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Usage Source</div>
+        <div class="value">Available</div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Capacity Summary (Workspaces, Reports, Top 5 by Unique Views)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Capacity</th>
+              <th>SKU</th>
+              <th>Type</th>
+              <th>Workspaces</th>
+              <th>Reports</th>
+              <th>Import Mode</th>
+              <th>DirectQuery/Live</th>
+              <th>Top 5 Reports (Unique Views)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>North Operations Capacity</td>
+              <td>P2</td>
+              <td>PBI Premium Capacity</td>
+              <td class="num">8</td>
+              <td class="num">74</td>
+              <td class="num">94.6% (70)</td>
+              <td class="num">5.4% (4)</td>
+              <td class="top5-cell"><ol class="top-reports"><li><span class="report-name">Executive Ops Overview</span> <span class="views">1,120 unique views</span></li><li><span class="report-name">Store Performance Pulse</span> <span class="views">980 unique views</span></li><li><span class="report-name">Weekly Margin Trend</span> <span class="views">861 unique views</span></li><li><span class="report-name">Customer Health Snapshot</span> <span class="views">803 unique views</span></li><li><span class="report-name">Operations Variance Board</span> <span class="views">742 unique views</span></li></ol></td>
+            </tr>
+            <tr>
+              <td>Finance Planning Core</td>
+              <td>P1</td>
+              <td>PBI Premium Capacity</td>
+              <td class="num">6</td>
+              <td class="num">41</td>
+              <td class="num">97.6% (40)</td>
+              <td class="num">2.4% (1)</td>
+              <td class="top5-cell"><ol class="top-reports"><li><span class="report-name">Forecast Consolidation Hub</span> <span class="views">664 unique views</span></li><li><span class="report-name">Budget Attainment Scorecard</span> <span class="views">533 unique views</span></li><li><span class="report-name">Cost Allocation Explorer</span> <span class="views">490 unique views</span></li><li><span class="report-name">Quarter Close Readout</span> <span class="views">451 unique views</span></li><li><span class="report-name">Cashflow Early Warning</span> <span class="views">396 unique views</span></li></ol></td>
+            </tr>
+            <tr>
+              <td>Digital Product Fabric</td>
+              <td>F64</td>
+              <td>Fabric Capacity</td>
+              <td class="num">5</td>
+              <td class="num">52</td>
+              <td class="num">86.5% (45)</td>
+              <td class="num">13.5% (7)</td>
+              <td class="top5-cell"><ol class="top-reports"><li><span class="report-name">Product Funnel Monitor</span> <span class="views">721 unique views</span></li><li><span class="report-name">Engagement Cohort Lens</span> <span class="views">689 unique views</span></li><li><span class="report-name">Release Quality Tracker</span> <span class="views">617 unique views</span></li><li><span class="report-name">Feature Adoption Heatmap</span> <span class="views">571 unique views</span></li><li><span class="report-name">Journey Drop-off Radar</span> <span class="views">524 unique views</span></li></ol></td>
+            </tr>
+            <tr>
+              <td>Special Projects Reserve</td>
+              <td>PP3</td>
+              <td>PBI Premium Capacity</td>
+              <td class="num">3</td>
+              <td class="num">11</td>
+              <td class="num">100.0% (11)</td>
+              <td class="num">0.0% (0)</td>
+              <td class="top5-cell"><ol class="top-reports"><li><span class="report-name">Pilot Governance Dashboard</span> <span class="views">144 unique views</span></li><li><span class="report-name">Vendor Transition Insights</span> <span class="views">137 unique views</span></li><li><span class="report-name">Sandbox Utilization Tracker</span> <span class="views">129 unique views</span></li><li><span class="report-name">Migration Readiness Canvas</span> <span class="views">121 unique views</span></li><li><span class="report-name">Trial Capacity Usage</span> <span class="views">109 unique views</span></li></ol></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Translating Power BI Premium to Microsoft Fabric SKUs</h2>
+      <p class="section-text">
+        Power BI Premium per capacity SKUs (P-SKUs) are being retired and organizations like yours should transition to a Microsoft Fabric SKU at the time of your next renewal. The Power BI Premium product capabilities will not change and there is no immediate action required. When Microsoft Fabric was launched, existing Power BI Premium customers were enabled to turn on Fabric through the Power BI admin portal and use their existing capacity to power Fabric capabilities.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Capacity</th>
+              <th>Current SKU</th>
+              <th>Current Capacity Type</th>
+              <th>Target F-SKU</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>North Operations Capacity</td><td>P2</td><td>PBI Premium Capacity</td><td><strong>F128</strong></td></tr>
+            <tr><td>Finance Planning Core</td><td>P1</td><td>PBI Premium Capacity</td><td><strong>F64</strong></td></tr>
+            <tr><td>Digital Product Fabric</td><td>F64</td><td>Fabric Capacity</td><td><strong>F64</strong></td></tr>
+            <tr><td>Special Projects Reserve</td><td>PP3</td><td>PBI Premium Capacity</td><td><strong>Review required (PPU SKU)</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note-box">
+        If you are familiar with PBI vCores, 8 CUs provide the same compute power as 1 Power BI Premium v-core for Power BI workloads. That is, F64 provides the equivalent compute power of Power BI Premium P1.
+      </p>
+    </section>
+
+    <p class="footer">Inputs (sample): PowerBI_Workspaces.json, PowerBI_Reports_All_Workspaces.json, PowerBI_UsageMetrics_All.json.</p>
+  </div>
+</body>
+</html>
