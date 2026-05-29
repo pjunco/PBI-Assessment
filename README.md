@@ -18,6 +18,7 @@ Microsoft Fabric introduces F-SKU capacities that replace the traditional Power 
 | What activities (refresh, export, share, create, delete) are happening across the tenant? | Script 04 |
 | How do I present usage & adoption data in an interactive shareable report? | Script 05 |
 | How do I present inventory findings to stakeholders in a single shareable document? | Script 99 |
+| How do I present executive capacity decisions including P-SKU to F-SKU translation? | Script 99 (by capacity) |
 
 ---
 
@@ -31,6 +32,7 @@ Assessment/
 ├── 04-Get-FabricAuditLogs.ps1            # Step 4  — Fabric / Power BI audit logs
 ├── 05-Generate-UsageReport.ps1           # Step 5  — Interactive HTML usage metrics report
 ├── 99-Generate-ExecutiveReport.ps1       # Optional — Interactive HTML executive report (inventory)
+├── 99-Generate-ExecutiveReportbyCapacity.ps1 # Optional — Executive HTML report by capacity + F-SKU mapping
 ├── Run-Scripts.bat                       # Menu-driven launcher (Windows)
 ├── Input/                                # (reserved for future input files)
 └── Output/                               # All JSON outputs land here
@@ -69,9 +71,14 @@ Assessment/
         │
         │  <OutputFolder>\Executive_Report_<CustomerName>.html
         └─ Self-contained interactive HTML file (no server required)
+
+99-Generate-ExecutiveReportbyCapacity.ps1   (runs after scripts 01, 02 and 03)
+        │
+        │  <OutputFolder>\Executive_Report_ByCapacity_<CustomerName>.html
+        └─ Self-contained executive HTML by capacity with Import/DQ split and target F-SKU
 ```
 
-Scripts 01 → 02 → 03 → 05 must run **in order**. Script 04 is independent. Script 99 requires only the output of scripts 01 and 02.
+Scripts 01 → 02 → 03 → 05 must run **in order**. Script 04 is independent. Script 99 requires only the output of scripts 01 and 02. Script 99-by-capacity uses scripts 01 and 02 and recommends running script 03 to populate usage-driven top reports and connection-mode split.
 
 ---
 
@@ -125,6 +132,9 @@ cd Assessment
 # Executive report — English / Spanish variants
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 1
 .\99-Generate-ExecutiveReport.ps1 -OutputFolder .\Output -CustomerName "My Customer" -Language 2
+
+# Executive report by capacity (includes Import vs DirectQuery/Live and P-SKU to F-SKU translation)
+.\99-Generate-ExecutiveReportbyCapacity.ps1 -OutputFolder .\Output -CustomerName "My Customer"
 ```
 
 ### Option B — Service principal
@@ -372,6 +382,47 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 
 ---
 
+### `99-Generate-ExecutiveReportbyCapacity.ps1` — Executive HTML by capacity + F-SKU translation
+
+Reads output JSON files from scripts 01, 02, and 03 and generates a **self-contained HTML executive report** grouped by capacity, including recommendation of target Microsoft Fabric SKU.
+
+![P-SKU to F-SKU executive report sample](PSKU2FSKU-executive-report-sample.png)
+
+**Report sections:**
+
+| Section | Contents |
+|---|---|
+| Overview KPI cards | Capacities, Workspaces, Reports, usage data availability |
+| Capacity Summary | Capacity, SKU, type, workspace count, report count, Import vs DirectQuery/Live split, Top 5 reports by unique views |
+| Translation section | Current capacity type and suggested target F-SKU per capacity |
+| Capacity note | CU equivalency statement (8 CUs = 1 PBI Premium v-core for Power BI workloads) |
+
+**P-SKU to F-SKU translation used in the report:**
+
+- `P1 -> F64`
+- `P2 -> F128`
+- `P3 -> F256`
+- `P4 -> F512`
+- `P5 -> F1024`
+- If current capacity is already Fabric (`F*`), the same SKU is kept.
+- PPU (`PP*`) is flagged as `Review required (PPU SKU)`.
+
+**Input files:**
+
+- `PowerBI_Workspaces.json`
+- `PowerBI_Reports_All_Workspaces.json`
+- `PowerBI_UsageMetrics_All.json` (optional but recommended)
+
+**Output:** `<OutputFolder>\Executive_Report_ByCapacity_<CustomerName>.html`
+
+**Example:**
+
+```powershell
+.\99-Generate-ExecutiveReportbyCapacity.ps1 -OutputFolder .\Output -CustomerName "Contoso"
+```
+
+---
+
 ## Output file reference
 
 | File | Produced by | Description |
@@ -385,6 +436,7 @@ Reads the JSON output from scripts 01 and 02 and generates a **self-contained, s
 | `Fabric_AuditLog_Summary_<date>.json` | Script 04 | Aggregated activity summary |
 | `PowerBI_UsageReport_<CustomerName>.html` | Script 05 | Self-contained interactive HTML usage metrics report |
 | `Executive_Report_<CustomerName>.html` | Script 99 | Self-contained interactive HTML executive report (inventory) |
+| `Executive_Report_ByCapacity_<CustomerName>.html` | Script 99 (by capacity) | Self-contained executive HTML by capacity including Import/DQ split and target F-SKU |
 
 ---
 
